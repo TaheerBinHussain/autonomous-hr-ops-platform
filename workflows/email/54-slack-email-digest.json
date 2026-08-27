@@ -123,8 +123,5 @@
     "executionOrder": "v1"
   },
   "id": "wf-email-54",
-  "tags": [
-    "email",
-    "slack"
-  ]
+  "tags": []
 }
