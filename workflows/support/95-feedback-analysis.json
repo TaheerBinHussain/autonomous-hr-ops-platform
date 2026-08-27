@@ -1,0 +1,143 @@
+{
+  "name": "Feedback Analysis",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly Feedback Analysis",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch CSAT Responses",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cr.*, st.category, st.subject FROM csat_responses cr JOIN support_tickets st ON cr.ticket_id = st.id WHERE cr.created_at >= NOW() - INTERVAL '7 days'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "AI Sentiment & Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/email/sentiment",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "responses",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "mode",
+              "value": "batch_analysis"
+            },
+            {
+              "name": "generate_insights",
+              "value": "true"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Insights Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "support-manager@company.com",
+        "subject": "Weekly Customer Feedback Insights \u2014 {{ $now.format('MMM DD, YYYY') }}",
+        "message": "Weekly Feedback Analysis Report\n\nAverage CSAT: {{ $json.avg_csat }}/5\nTotal Responses: {{ $json.response_count }}\nPositive Rate: {{ $json.positive_rate }}%\n\nKey Themes:\n{{ $json.insights.map(i => `\u2022 ${i}`).join('\\n') }}\n\nAreas for Improvement:\n{{ $json.improvement_areas.map(a => `\u2022 ${a}`).join('\\n') }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Feedback Analysis": {
+      "main": [
+        [
+          {
+            "node": "Fetch CSAT Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch CSAT Responses": {
+      "main": [
+        [
+          {
+            "node": "AI Sentiment & Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Sentiment & Insights": {
+      "main": [
+        [
+          {
+            "node": "Send Insights Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-sup-95",
+  "tags": [
+    "support",
+    "ai",
+    "analytics"
+  ]
+}

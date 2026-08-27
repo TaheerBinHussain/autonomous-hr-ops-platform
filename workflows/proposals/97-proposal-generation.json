@@ -1,0 +1,147 @@
+{
+  "name": "Proposal Generation",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Proposal Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal-generate",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch RFP Analysis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ra.*, c.name as client_name FROM rfp_analyses ra JOIN clients c ON ra.client_id = c.id WHERE ra.rfp_id = '{{ $json.rfp_id }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Generate Full Proposal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/proposals/full-proposal",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "rfp_data",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "company_profile",
+              "value": "{{ $json.company_profile }}"
+            },
+            {
+              "name": "similar_projects",
+              "value": "={{ $json.similar_projects }}"
+            },
+            {
+              "name": "format",
+              "value": "pdf"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Proposal to MinIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "url": "http://minio:9000/proposals/{{ $json.proposal_id }}.pdf",
+        "method": "PUT",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.pdf_base64 }}"
+            },
+            {
+              "name": "metadata",
+              "value": "{\"rfp_id\": \"{{ $json.rfp_id }}\", \"client\": \"{{ $json.client_name }}\"}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Proposal Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch RFP Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch RFP Analysis": {
+      "main": [
+        [
+          {
+            "node": "Generate Full Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Full Proposal": {
+      "main": [
+        [
+          {
+            "node": "Save Proposal to MinIO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-prop-97",
+  "tags": [
+    "proposals",
+    "ai",
+    "documents"
+  ]
+}

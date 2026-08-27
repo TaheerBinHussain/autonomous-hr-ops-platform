@@ -1,0 +1,156 @@
+{
+  "name": "Form Field Extraction",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Form Document Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "doc-form-extract",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Parse Form Fields",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/parse",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_url",
+              "value": "={{ $json.document_url }}"
+            },
+            {
+              "name": "document_type",
+              "value": "form"
+            },
+            {
+              "name": "type",
+              "value": "form"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Map Form Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "extracted_fields",
+              "value": "={{ $json.fields }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "field_count",
+              "value": "={{ Object.keys($json.fields).length }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "confidence",
+              "value": "={{ $json.confidence }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-3",
+              "name": "form_type",
+              "value": "={{ $json.detected_form_type }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Form Extraction",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO form_extractions (document_url, form_type, fields, field_count, confidence, extracted_at) VALUES ('{{ $json.document_url }}', '{{ $json.form_type }}', '{{ $json.extracted_fields }}'::jsonb, {{ $json.field_count }}, {{ $json.confidence }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Form Document Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Form Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Form Fields": {
+      "main": [
+        [
+          {
+            "node": "Map Form Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Form Fields": {
+      "main": [
+        [
+          {
+            "node": "Save Form Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-74",
+  "tags": [
+    "document_parsing"
+  ]
+}

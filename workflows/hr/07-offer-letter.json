@@ -1,0 +1,144 @@
+{
+  "name": "Offer Letter Generation",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Offer Letter Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "offer-letter",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Generate Offer Letter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/hr/generate-offer-letter",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "candidate_id",
+              "value": "={{ $json.candidate_id }}"
+            },
+            {
+              "name": "salary",
+              "value": "={{ $json.salary }}"
+            },
+            {
+              "name": "start_date",
+              "value": "={{ $json.start_date }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save to MinIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://minio:9000/hr-docs/offer-letters",
+        "method": "PUT",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "filename",
+              "value": "={{ $json.candidate_id }}-offer.pdf"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.pdf_content }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Offer Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.candidate_email }}",
+        "subject": "Congratulations \u2014 Job Offer from {{ $json.company_name }}",
+        "message": "Dear {{ $json.candidate_name }},\n\nWe are delighted to offer you the position of {{ $json.job_title }}.\nPlease find your offer letter attached and accessible at: {{ $json.document_url }}\n\nStart Date: {{ $json.start_date }}\nSalary: {{ $json.salary }}\n\nBest regards,\nHR Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Offer Letter Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate Offer Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Offer Letter": {
+      "main": [
+        [
+          {
+            "node": "Save to MinIO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to MinIO": {
+      "main": [
+        [
+          {
+            "node": "Send Offer Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-07",
+  "tags": [
+    "hr",
+    "recruiting"
+  ]
+}

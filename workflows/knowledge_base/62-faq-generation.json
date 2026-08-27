@@ -1,0 +1,137 @@
+{
+  "name": "FAQ Generation",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly FAQ Generation",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Support Tickets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, subject, description, resolution FROM support_tickets WHERE status = 'resolved' AND created_at >= NOW() - INTERVAL '7 days' AND faq_generated = false LIMIT 100"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Generate FAQs with AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/kb/generate-faqs",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tickets",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "format",
+              "value": "qa_pairs"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save FAQs to KB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO kb_faqs (question, answer, category, source_ticket_ids, generated_at) SELECT question, answer, category, source_ids, NOW() FROM json_array_elements('{{ $json.faqs }}'::json) AS faq(question text, answer text, category text, source_ids text)"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly FAQ Generation": {
+      "main": [
+        [
+          {
+            "node": "Fetch Support Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Support Tickets": {
+      "main": [
+        [
+          {
+            "node": "Generate FAQs with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate FAQs with AI": {
+      "main": [
+        [
+          {
+            "node": "Save FAQs to KB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-62",
+  "tags": [
+    "knowledge_base",
+    "ai",
+    "support"
+  ]
+}

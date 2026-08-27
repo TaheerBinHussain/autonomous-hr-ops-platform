@@ -1,0 +1,137 @@
+{
+  "name": "Overdue Invoice Escalation",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Escalation Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "invoice-escalation",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Create Legal Task",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO legal_tasks (invoice_id, task_type, description, priority, created_at) VALUES ({{ $json.invoice_id }}, 'legal_notice', 'Send legal notice for unpaid invoice #{{ $json.invoice_number }} (${{ $json.amount }})', 'urgent', NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Create Jira Escalation Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://jira-api:8080/rest/api/2/issue",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "summary",
+              "value": "Legal Escalation: Invoice {{ $json.invoice_number }}"
+            },
+            {
+              "name": "priority",
+              "value": "Urgent"
+            },
+            {
+              "name": "description",
+              "value": "Invoice {{ $json.invoice_number }} for ${{ $json.amount }} is 30+ days overdue. Client: {{ $json.client_name }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Alert Finance Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#finance-escalations",
+        "text": ":rotating_light: *INVOICE ESCALATION*\nInvoice #{{ $json.invoice_number }} \u2014 *${{ $json.amount }}* is 30+ days overdue!\nClient: {{ $json.client_name }}\nJira Ticket: {{ $json.key }}\nImmediate action required."
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Escalation Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create Legal Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Legal Task": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Escalation Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira Escalation Ticket": {
+      "main": [
+        [
+          {
+            "node": "Alert Finance Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-42",
+  "tags": [
+    "invoice",
+    "finance",
+    "legal"
+  ]
+}

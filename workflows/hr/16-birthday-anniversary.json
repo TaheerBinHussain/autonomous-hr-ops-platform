@@ -1,0 +1,165 @@
+{
+  "name": "Birthday & Anniversary Celebration",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Daily Birthday Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Find Birthdays & Anniversaries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name, slack_id, 'birthday' as event_type FROM employees WHERE EXTRACT(MONTH FROM date_of_birth) = EXTRACT(MONTH FROM NOW()) AND EXTRACT(DAY FROM date_of_birth) = EXTRACT(DAY FROM NOW()) AND status = 'active' UNION ALL SELECT name, slack_id, 'anniversary' as event_type FROM employees WHERE EXTRACT(MONTH FROM hire_date) = EXTRACT(MONTH FROM NOW()) AND EXTRACT(DAY FROM hire_date) = EXTRACT(DAY FROM NOW()) AND status = 'active'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Check Event Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.event_type }}",
+              "rightValue": "birthday",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Birthday Message",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        200
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#general",
+        "text": ":birthday: Happy Birthday <@{{ $json.slack_id }}>! Wishing you a wonderful day! :cake:"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Anniversary Message",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        400
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#general",
+        "text": ":tada: Happy Work Anniversary <@{{ $json.slack_id }}>! Thank you for being part of our team! :star:"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Birthday Check": {
+      "main": [
+        [
+          {
+            "node": "Find Birthdays & Anniversaries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Birthdays & Anniversaries": {
+      "main": [
+        [
+          {
+            "node": "Check Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Event Type": {
+      "main": [
+        [
+          {
+            "node": "Birthday Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Anniversary Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-16",
+  "tags": [
+    "hr",
+    "culture"
+  ]
+}

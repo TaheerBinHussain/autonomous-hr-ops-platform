@@ -1,0 +1,144 @@
+{
+  "name": "Vendor Payment",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly Vendor Payment Run",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Find Approved Vendor Invoices",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT vi.*, v.name as vendor_name, v.bank_account, v.routing_number FROM vendor_invoices vi JOIN vendors v ON vi.vendor_id = v.id WHERE vi.status = 'approved' AND vi.due_date <= CURRENT_DATE + INTERVAL '7 days'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Initiate Bank Payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "https://api.banking-provider.com/v1/transfers",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "amount",
+              "value": "={{ $json.amount }}"
+            },
+            {
+              "name": "account_number",
+              "value": "={{ $json.bank_account }}"
+            },
+            {
+              "name": "routing_number",
+              "value": "={{ $json.routing_number }}"
+            },
+            {
+              "name": "reference",
+              "value": "={{ $json.invoice_number }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Update Payment Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE vendor_invoices SET status = 'paid', paid_at = NOW(), transaction_id = '{{ $json.transaction_id }}' WHERE id = {{ $json.id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Vendor Payment Run": {
+      "main": [
+        [
+          {
+            "node": "Find Approved Vendor Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Approved Vendor Invoices": {
+      "main": [
+        [
+          {
+            "node": "Initiate Bank Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initiate Bank Payment": {
+      "main": [
+        [
+          {
+            "node": "Update Payment Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-49",
+  "tags": [
+    "invoice",
+    "finance"
+  ]
+}

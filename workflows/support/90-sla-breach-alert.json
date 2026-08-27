@@ -1,0 +1,140 @@
+{
+  "name": "SLA Breach Alert",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Find SLA Breaching Tickets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.*, c.name as customer_name, u.slack_id as assignee_slack FROM support_tickets t LEFT JOIN customers c ON t.customer_id = c.id LEFT JOIN users u ON t.assigned_to = u.id WHERE t.status IN ('open', 'in_progress') AND ((t.priority = 'urgent' AND t.created_at < NOW() - INTERVAL '2 hours') OR (t.priority = 'high' AND t.created_at < NOW() - INTERVAL '4 hours') OR (t.priority = 'normal' AND t.created_at < NOW() - INTERVAL '24 hours'))"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Calculate Breach Severity",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "hours_open",
+              "value": "={{ Math.floor((new Date() - new Date($json.created_at)) / 3600000) }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "sla_status",
+              "value": "=BREACHED",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Urgent SLA Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#support-sla-alerts",
+        "text": ":fire: *SLA BREACH ALERT*\nTicket: TKT-{{ $json.id }} ({{ $json.priority }} priority)\nCustomer: {{ $json.customer_name }}\nOpen: {{ $json.hours_open }} hours\nAssigned: <@{{ $json.assignee_slack }}>\nImmediate action required!\nhttps://support.company.com/tickets/{{ $json.id }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Find SLA Breaching Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find SLA Breaching Tickets": {
+      "main": [
+        [
+          {
+            "node": "Calculate Breach Severity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Breach Severity": {
+      "main": [
+        [
+          {
+            "node": "Send Urgent SLA Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-sup-90",
+  "tags": [
+    "support",
+    "sla"
+  ]
+}

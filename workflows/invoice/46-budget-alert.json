@@ -1,0 +1,165 @@
+{
+  "name": "Budget Alert",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Daily Budget Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Check Budget Utilization",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.name as department, b.budget_amount, SUM(e.amount) as spent, SUM(e.amount) / b.budget_amount * 100 as utilization_pct FROM budget b JOIN departments d ON b.department_id = d.id LEFT JOIN expenses e ON e.department_id = d.id AND e.expense_date >= date_trunc('month', NOW()) WHERE b.period = date_trunc('month', NOW()) GROUP BY d.name, b.budget_amount HAVING SUM(e.amount) / b.budget_amount >= 0.8"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Over Budget?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.utilization_pct }}",
+              "rightValue": "100",
+              "operator": {
+                "type": "string",
+                "operation": "largerEqual"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Over Budget Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        200
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#finance-alerts",
+        "text": ":red_circle: *BUDGET EXCEEDED!*\nDepartment: *{{ $json.department }}*\nBudget: ${{ $json.budget_amount }}\nSpent: ${{ $json.spent }} ({{ $json.utilization_pct.toFixed(1) }}%)\nImmediate review required!"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Budget Warning Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        400
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#finance-alerts",
+        "text": ":yellow_circle: *Budget Warning \u2014 {{ $json.department }}*\nUtilization: {{ $json.utilization_pct.toFixed(1) }}% (${{ $json.spent }} of ${{ $json.budget_amount }})\nMonitor closely."
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Budget Check": {
+      "main": [
+        [
+          {
+            "node": "Check Budget Utilization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Budget Utilization": {
+      "main": [
+        [
+          {
+            "node": "Over Budget?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Over Budget?": {
+      "main": [
+        [
+          {
+            "node": "Over Budget Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Budget Warning Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-46",
+  "tags": [
+    "invoice",
+    "finance"
+  ]
+}

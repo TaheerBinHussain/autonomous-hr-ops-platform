@@ -1,0 +1,133 @@
+{
+  "name": "Action Item Extraction",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Meeting Transcript Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meeting-action-items",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Extract Action Items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/meetings/extract-actions",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "transcript",
+              "value": "={{ $json.transcript_text }}"
+            },
+            {
+              "name": "participants",
+              "value": "={{ $json.participants }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Create Action Item Tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO action_items (meeting_id, task_description, assignee, due_date, priority, status, created_at) SELECT '{{ $json.meeting_id }}', item->>'task', item->>'assignee', (item->>'due_date')::date, item->>'priority', 'open', NOW() FROM json_array_elements('{{ $json.action_items }}'::json) AS item"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Action Items to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "={{ $json.team_channel }}",
+        "text": ":white_check_mark: *Action Items from {{ $json.meeting_title }}*\n{{ $json.action_items.map(a => `\u2022 [{{ a.assignee }}] {{ a.task }} \u2014 Due: {{ a.due_date }}`).join('\\n') }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Meeting Transcript Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Action Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Action Items": {
+      "main": [
+        [
+          {
+            "node": "Create Action Item Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Action Item Tasks": {
+      "main": [
+        [
+          {
+            "node": "Send Action Items to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-meet-82",
+  "tags": [
+    "meetings",
+    "ai",
+    "tasks"
+  ]
+}

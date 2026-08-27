@@ -1,0 +1,126 @@
+{
+  "name": "Reference Check",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Reference Check Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "reference-check",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Get Candidate References",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT r.*, c.name as candidate_name FROM references r JOIN candidates c ON r.candidate_id = c.id WHERE r.candidate_id = {{ $json.candidate_id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Send Reference Request Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.reference_email }}",
+        "subject": "Reference Request for {{ $json.candidate_name }}",
+        "message": "Dear {{ $json.reference_name }},\n\nWe are conducting a reference check for {{ $json.candidate_name }}, who has applied for the {{ $json.job_title }} position.\n\nWould you kindly complete this brief reference form: https://hr-portal.company.com/references/{{ $json.reference_token }}\n\nThank you for your time.\n\nHR Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Log Reference Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO reference_requests (candidate_id, reference_id, sent_at, status) VALUES ({{ $json.candidate_id }}, {{ $json.id }}, NOW(), 'pending')"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Reference Check Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Candidate References",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Candidate References": {
+      "main": [
+        [
+          {
+            "node": "Send Reference Request Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reference Request Email": {
+      "main": [
+        [
+          {
+            "node": "Log Reference Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-19",
+  "tags": [
+    "hr",
+    "recruiting"
+  ]
+}

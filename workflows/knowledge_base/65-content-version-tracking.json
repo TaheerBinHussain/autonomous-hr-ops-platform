@@ -1,0 +1,125 @@
+{
+  "name": "Content Version Tracking",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Document Update Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kb-doc-update",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Save New Version",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO kb_document_versions (document_id, version_number, content, changed_by, changed_at, change_summary) SELECT id, COALESCE((SELECT MAX(version_number) FROM kb_document_versions WHERE document_id = {{ $json.document_id }}), 0) + 1, '{{ $json.new_content }}', {{ $json.user_id }}, NOW(), '{{ $json.change_summary }}' FROM kb_documents WHERE id = {{ $json.document_id }} RETURNING version_number"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Update Main Document",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE kb_documents SET content = '{{ $json.new_content }}', updated_at = NOW(), updated_by = {{ $json.user_id }} WHERE id = {{ $json.document_id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Notify Subscribers",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#knowledge-base-updates",
+        "text": ":page_facing_up: Document Updated!\n*{{ $json.document_title }}* has been updated (v{{ $json.version_number }})\nBy: {{ $json.editor_name }}\nChanges: {{ $json.change_summary }}\nView: https://kb.company.com/docs/{{ $json.document_id }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Document Update Webhook": {
+      "main": [
+        [
+          {
+            "node": "Save New Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save New Version": {
+      "main": [
+        [
+          {
+            "node": "Update Main Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Main Document": {
+      "main": [
+        [
+          {
+            "node": "Notify Subscribers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-65",
+  "tags": [
+    "knowledge_base",
+    "documents"
+  ]
+}

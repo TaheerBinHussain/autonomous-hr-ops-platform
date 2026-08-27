@@ -1,0 +1,138 @@
+{
+  "name": "AI First Response",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Classified Ticket Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support-ai-response",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Generate AI Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/support/generate-response",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ticket_id",
+              "value": "={{ $json.ticket_id }}"
+            },
+            {
+              "name": "category",
+              "value": "={{ $json.category }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ $json.description }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Send AI First Response",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.customer_email }}",
+        "subject": "Re: {{ $json.subject }} [TKT-{{ $json.ticket_id }}]",
+        "message": "={{ $json.ai_response }}\n\n---\nTicket #TKT-{{ $json.ticket_id }}\nIf this doesn't resolve your issue, a human agent will follow up.\nView ticket: https://support.company.com/tickets/{{ $json.ticket_id }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Log AI Response",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ticket_responses (ticket_id, response_type, response_text, sent_at) VALUES ({{ $json.ticket_id }}, 'ai_first_response', '{{ $json.ai_response }}', NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Classified Ticket Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Response": {
+      "main": [
+        [
+          {
+            "node": "Send AI First Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send AI First Response": {
+      "main": [
+        [
+          {
+            "node": "Log AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-sup-88",
+  "tags": [
+    "support",
+    "ai",
+    "email"
+  ]
+}

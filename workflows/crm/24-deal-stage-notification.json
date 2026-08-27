@@ -1,0 +1,135 @@
+{
+  "name": "Deal Stage Notification",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Deal Update Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deal-stage-update",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Get Deal & Rep Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.*, u.name as rep_name, u.slack_id FROM deals d JOIN users u ON d.assigned_to = u.id WHERE d.id = {{ $json.deal_id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Stage Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "stage_emoji",
+              "value": "={% if $json.new_stage == 'Closed Won' %}\ud83c\udfc6{% elif $json.new_stage == 'Proposal' %}\ud83d\udcc4{% elif $json.new_stage == 'Negotiation' %}\ud83e\udd1d{% else %}\ud83d\udcca{% endif %}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "message",
+              "value": "={{ $json.stage_emoji }} Deal *{{ $json.deal_name }}* moved to *{{ $json.new_stage }}* (was: {{ $json.old_stage }})\nValue: ${{ $json.value }}\nRep: <@{{ $json.slack_id }}>",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Notify Sales Channel",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#crm-deals",
+        "text": "={{ $json.message }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Deal Update Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Deal & Rep Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Deal & Rep Details": {
+      "main": [
+        [
+          {
+            "node": "Format Stage Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Stage Message": {
+      "main": [
+        [
+          {
+            "node": "Notify Sales Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-24",
+  "tags": [
+    "crm",
+    "sales"
+  ]
+}

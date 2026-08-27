@@ -1,0 +1,131 @@
+{
+  "name": "Competitor Analysis",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Competitor Analysis Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal-competitor-analysis",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Competitor Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://web-scraper-api:3000/api/competitor?company={{ $json.competitor_name }}",
+        "method": "GET",
+        "options": {}
+      }
+    },
+    {
+      "id": "n3",
+      "name": "AI Competitive Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/proposals/competitor-analysis",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "competitor_data",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "our_strengths",
+              "value": "={{ $json.our_strengths }}"
+            },
+            {
+              "name": "rfp_context",
+              "value": "={{ $json.rfp_context }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Competitor Insights",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO competitor_analyses (rfp_id, competitor_name, strengths, weaknesses, our_advantages, risk_level, analysis, created_at) VALUES ('{{ $json.rfp_id }}', '{{ $json.competitor_name }}', '{{ $json.competitor_strengths }}'::jsonb, '{{ $json.competitor_weaknesses }}'::jsonb, '{{ $json.our_advantages }}'::jsonb, '{{ $json.risk_level }}', '{{ $json.analysis }}', NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Competitor Analysis Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Competitor Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Competitor Info": {
+      "main": [
+        [
+          {
+            "node": "AI Competitive Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Competitive Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save Competitor Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-prop-98",
+  "tags": [
+    "proposals",
+    "ai",
+    "crm"
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "name": "Table Extraction",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Table Document Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "doc-table-extract",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Extract Tables from Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/extract-tables",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_url",
+              "value": "={{ $json.document_url }}"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "include_headers",
+              "value": "true"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Process Extracted Tables",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const tables = $input.first().json.tables || [];\nreturn tables.map((table, i) => ({\n  json: {\n    table_index: i,\n    headers: table.headers,\n    row_count: table.rows.length,\n    data: table.rows,\n    document_url: $input.first().json.document_url\n  }\n}));"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Structured Table Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO extracted_tables (document_url, table_index, headers, row_count, data, extracted_at) VALUES ('{{ $json.document_url }}', {{ $json.table_index }}, '{{ $json.headers }}'::jsonb, {{ $json.row_count }}, '{{ $json.data }}'::jsonb, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Table Document Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Tables from Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Tables from Document": {
+      "main": [
+        [
+          {
+            "node": "Process Extracted Tables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Extracted Tables": {
+      "main": [
+        [
+          {
+            "node": "Save Structured Table Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-75",
+  "tags": [
+    "document_parsing",
+    "data"
+  ]
+}

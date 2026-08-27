@@ -1,0 +1,142 @@
+{
+  "name": "Payment Reminder \u2014 14 Day Overdue",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Daily Payment Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Find 14-Day Overdue Invoices",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.*, c.email, c.name as client_name FROM invoices i JOIN customers c ON i.customer_id = c.id WHERE i.status = 'unpaid' AND i.due_date = (CURRENT_DATE - INTERVAL '14 days') OR (i.due_date < CURRENT_DATE AND i.overdue_days = 14)"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Generate Reminder Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/invoice/payment-reminder",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "invoice_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "days_overdue",
+              "value": "14"
+            },
+            {
+              "name": "urgency",
+              "value": "firm"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Payment Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.email }}",
+        "subject": "[URGENT: Payment Reminder] Invoice #{{ $json.invoice_number }} \u2014 14 Days Overdue",
+        "message": "={{ $json.reminder_email_body }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Payment Check": {
+      "main": [
+        [
+          {
+            "node": "Find 14-Day Overdue Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find 14-Day Overdue Invoices": {
+      "main": [
+        [
+          {
+            "node": "Generate Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Send Payment Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-40",
+  "tags": [
+    "invoice",
+    "finance"
+  ]
+}

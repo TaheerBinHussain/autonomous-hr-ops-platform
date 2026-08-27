@@ -1,0 +1,167 @@
+{
+  "name": "Employee Offboarding",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Offboarding Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "employee-offboarding",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Revoke SSO Access",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        200
+      ],
+      "parameters": {
+        "url": "http://sso-api:8080/api/users/disable",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.employee_id }}"
+            },
+            {
+              "name": "reason",
+              "value": "employee_offboarding"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Create IT Offboarding Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        400
+      ],
+      "parameters": {
+        "url": "http://jira-api:8080/rest/api/2/issue",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "summary",
+              "value": "Offboarding: Revoke all access for {{ $json.employee_name }}"
+            },
+            {
+              "name": "priority",
+              "value": "High"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Merge Offboarding Actions",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Update Employee Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE employees SET status = 'offboarded', last_day = '{{ $json.last_day }}', offboarded_at = NOW() WHERE id = {{ $json.employee_id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Offboarding Webhook": {
+      "main": [
+        [
+          {
+            "node": "Revoke SSO Access",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create IT Offboarding Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revoke SSO Access": {
+      "main": [
+        [
+          {
+            "node": "Merge Offboarding Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create IT Offboarding Ticket": {
+      "main": [
+        [
+          {
+            "node": "Merge Offboarding Actions",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Offboarding Actions": {
+      "main": [
+        [
+          {
+            "node": "Update Employee Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-11",
+  "tags": [
+    "hr",
+    "offboarding"
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "name": "Outdated Content Flagging",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Monthly Content Audit",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Find Outdated Documents",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.*, u.email as owner_email, u.name as owner_name FROM kb_documents d JOIN users u ON d.created_by = u.id WHERE d.updated_at < NOW() - INTERVAL '6 months' AND d.status = 'active'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Flag as Outdated",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE kb_documents SET status = 'review_needed', flagged_at = NOW() WHERE id = {{ $json.id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Notify Content Owner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.owner_email }}",
+        "subject": "Action Required: Review Outdated Content \u2014 {{ $json.title }}",
+        "message": "Hi {{ $json.owner_name }},\n\nThe following knowledge base article needs your review:\n\nTitle: {{ $json.title }}\nLast Updated: {{ $json.updated_at }}\nView: https://kb.company.com/docs/{{ $json.id }}\n\nPlease review and update or archive this content.\n\nKnowledge Base Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monthly Content Audit": {
+      "main": [
+        [
+          {
+            "node": "Find Outdated Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Outdated Documents": {
+      "main": [
+        [
+          {
+            "node": "Flag as Outdated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag as Outdated": {
+      "main": [
+        [
+          {
+            "node": "Notify Content Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-64",
+  "tags": [
+    "knowledge_base",
+    "content"
+  ]
+}

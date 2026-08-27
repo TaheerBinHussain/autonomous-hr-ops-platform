@@ -1,0 +1,136 @@
+{
+  "name": "Meeting Transcript Ingestion",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Transcript Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meeting-transcript",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Summarize Transcript",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/meetings/summarize",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "transcript",
+              "value": "={{ $json.transcript_text }}"
+            },
+            {
+              "name": "meeting_id",
+              "value": "={{ $json.meeting_id }}"
+            },
+            {
+              "name": "participants",
+              "value": "={{ $json.participants }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save Meeting Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO meeting_summaries (meeting_id, title, transcript, summary, key_points, participants, duration_minutes, summarized_at) VALUES ('{{ $json.meeting_id }}', '{{ $json.meeting_title }}', '{{ $json.transcript_text }}', '{{ $json.summary }}', '{{ $json.key_points }}'::jsonb, '{{ $json.participants }}'::jsonb, {{ $json.duration_minutes }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Post Summary to Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "={{ $json.team_channel }}",
+        "text": ":notepad_spiral: *Meeting Summary: {{ $json.meeting_title }}*\n{{ $json.summary }}\n\nKey Points:\n{{ $json.key_points.map(p => `\u2022 ${p}`).join('\\n') }}\n\nFull notes: https://meetings.company.com/{{ $json.meeting_id }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Transcript Webhook": {
+      "main": [
+        [
+          {
+            "node": "Summarize Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Transcript": {
+      "main": [
+        [
+          {
+            "node": "Save Meeting Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Meeting Summary": {
+      "main": [
+        [
+          {
+            "node": "Post Summary to Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-meet-81",
+  "tags": [
+    "meetings",
+    "ai"
+  ]
+}

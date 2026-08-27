@@ -1,0 +1,168 @@
+{
+  "name": "Auto Reply Common Queries",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Incoming Email Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "auto-reply",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Match Common Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/email/match-faq",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "subject",
+              "value": "={{ $json.subject }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.body }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "FAQ Match Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": "0.85",
+              "operator": {
+                "type": "string",
+                "operation": "largerEqual"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Auto Reply",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        200
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.from }}",
+        "subject": "Re: {{ $json.subject }}",
+        "message": "={{ $json.faq_answer }}\n\n---\nThis is an automated response. If this doesn't answer your question, a human agent will follow up.\n\nSupport Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Log for Human Review",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_queue (sender, subject, body, status, received_at) VALUES ('{{ $json.from }}', '{{ $json.subject }}', '{{ $json.body }}', 'needs_human', NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Incoming Email Webhook": {
+      "main": [
+        [
+          {
+            "node": "Match Common Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Common Query": {
+      "main": [
+        [
+          {
+            "node": "FAQ Match Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FAQ Match Found?": {
+      "main": [
+        [
+          {
+            "node": "Send Auto Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log for Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-email-52",
+  "tags": [
+    "email",
+    "ai",
+    "support"
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "name": "Sales Performance Report",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Monthly Sales Report",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Get Rep Performance Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.name, u.email, COUNT(d.id) as total_deals, SUM(CASE WHEN d.status = 'Closed Won' THEN 1 ELSE 0 END) as won, SUM(CASE WHEN d.status = 'Closed Won' THEN d.value ELSE 0 END) as revenue FROM users u LEFT JOIN deals d ON d.assigned_to = u.id AND d.closed_at >= date_trunc('month', NOW() - INTERVAL '1 month') WHERE u.role = 'sales_rep' GROUP BY u.id, u.name, u.email"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Calculate Win Rate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const r = item.json;\n  return { json: { ...r, win_rate: r.total_deals > 0 ? ((r.won / r.total_deals) * 100).toFixed(1) : 0 } };\n});"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Individual Rep Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.email }}",
+        "subject": "Your Monthly Sales Performance Report",
+        "message": "Hi {{ $json.name }},\n\nHere is your performance summary for last month:\n\nTotal Deals: {{ $json.total_deals }}\nDeals Won: {{ $json.won }}\nWin Rate: {{ $json.win_rate }}%\nRevenue Generated: ${{ $json.revenue }}\n\nKeep up the great work!\nSales Operations",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monthly Sales Report": {
+      "main": [
+        [
+          {
+            "node": "Get Rep Performance Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Rep Performance Data": {
+      "main": [
+        [
+          {
+            "node": "Calculate Win Rate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Win Rate": {
+      "main": [
+        [
+          {
+            "node": "Send Individual Rep Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-33",
+  "tags": [
+    "crm",
+    "reporting"
+  ]
+}

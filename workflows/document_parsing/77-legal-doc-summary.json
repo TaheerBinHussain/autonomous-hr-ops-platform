@@ -1,0 +1,164 @@
+{
+  "name": "Legal Document Summary",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Legal Document Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "doc-legal-summary",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "AI Legal Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/summarize",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.document_text }}"
+            },
+            {
+              "name": "context",
+              "value": "legal"
+            },
+            {
+              "name": "extract",
+              "value": "key_clauses,risks,obligations,dates,parties,jurisdiction"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Structure Legal Analysis",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "summary",
+              "value": "={{ $json.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "key_clauses",
+              "value": "={{ $json.extracted.key_clauses }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "risks",
+              "value": "={{ $json.extracted.risks }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-3",
+              "name": "obligations",
+              "value": "={{ $json.extracted.obligations }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-4",
+              "name": "jurisdiction",
+              "value": "={{ $json.extracted.jurisdiction }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Legal Analysis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO legal_doc_analyses (document_id, summary, key_clauses, risks, obligations, jurisdiction, analyzed_by, analyzed_at) VALUES ({{ $json.document_id }}, '{{ $json.summary }}', '{{ $json.key_clauses }}'::jsonb, '{{ $json.risks }}'::jsonb, '{{ $json.obligations }}'::jsonb, '{{ $json.jurisdiction }}', {{ $json.user_id }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Legal Document Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Legal Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Legal Summary": {
+      "main": [
+        [
+          {
+            "node": "Structure Legal Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure Legal Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save Legal Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-77",
+  "tags": [
+    "document_parsing",
+    "legal",
+    "ai"
+  ]
+}

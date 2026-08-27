@@ -1,0 +1,130 @@
+{
+  "name": "Support Metrics Dashboard",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Daily Metrics Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Aggregate Support Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total_tickets, COUNT(CASE WHEN status = 'open' THEN 1 END) as open_tickets, COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed_tickets, AVG(CASE WHEN closed_at IS NOT NULL THEN EXTRACT(EPOCH FROM (closed_at - created_at))/3600 END) as avg_resolution_hours, COUNT(CASE WHEN priority = 'urgent' THEN 1 END) as urgent_tickets, (SELECT AVG(rating) FROM csat_responses WHERE created_at >= CURRENT_DATE) as avg_csat FROM support_tickets WHERE created_at >= CURRENT_DATE"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Dashboard Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst dashboard = {\n  date: new Date().toISOString().split('T')[0],\n  total_tickets: d.total_tickets,\n  open_tickets: d.open_tickets,\n  closed_tickets: d.closed_tickets,\n  avg_resolution_hours: parseFloat(d.avg_resolution_hours).toFixed(1),\n  urgent_tickets: d.urgent_tickets,\n  avg_csat: parseFloat(d.avg_csat).toFixed(2),\n  first_response_rate: ((d.closed_tickets / d.total_tickets) * 100).toFixed(1)\n};\nreturn [{json: dashboard}];"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Update Dashboard Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "url": "http://dashboard-api:3000/api/metrics/support",
+        "method": "PUT",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "date",
+              "value": "={{ $json.date }}"
+            },
+            {
+              "name": "metrics",
+              "value": "={{ $json }}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Metrics Schedule": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Support Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Support Metrics": {
+      "main": [
+        [
+          {
+            "node": "Format Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Dashboard Data": {
+      "main": [
+        [
+          {
+            "node": "Update Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-sup-94",
+  "tags": [
+    "support",
+    "analytics",
+    "reporting"
+  ]
+}

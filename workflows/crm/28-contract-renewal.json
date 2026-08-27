@@ -1,0 +1,141 @@
+{
+  "name": "Contract Renewal",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Daily Renewal Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Find Expiring Contracts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, cu.name as customer_name, cu.email FROM contracts c JOIN customers cu ON c.customer_id = cu.id WHERE c.status = 'active' AND c.end_date BETWEEN NOW() AND NOW() + INTERVAL '90 days' AND c.renewal_email_sent IS NULL"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Calculate Days Until Expiry",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "days_remaining",
+              "value": "={{ Math.floor((new Date($json.end_date) - new Date()) / 86400000) }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "urgency",
+              "value": "={% if days_remaining <= 30 %}URGENT{% elif days_remaining <= 60 %}SOON{% else %}UPCOMING{% endif %}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Renewal Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.email }}",
+        "subject": "[{{ $json.urgency }}] Contract Renewal \u2014 {{ $json.days_remaining }} Days Remaining",
+        "message": "Dear {{ $json.customer_name }},\n\nYour contract ({{ $json.contract_number }}) expires on {{ $json.end_date }} ({{ $json.days_remaining }} days).\n\nPlease contact your account manager to discuss renewal options.\n\nAccount Manager: {{ $json.account_manager }}\nRenewal Portal: https://portal.company.com/renewals/{{ $json.id }}\n\nBest regards,\nAccount Management Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Renewal Check": {
+      "main": [
+        [
+          {
+            "node": "Find Expiring Contracts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Expiring Contracts": {
+      "main": [
+        [
+          {
+            "node": "Calculate Days Until Expiry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Days Until Expiry": {
+      "main": [
+        [
+          {
+            "node": "Send Renewal Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-28",
+  "tags": [
+    "crm",
+    "sales"
+  ]
+}

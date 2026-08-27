@@ -1,0 +1,137 @@
+{
+  "name": "Demo Scheduling",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Demo Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "demo-scheduling",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Create Calendar Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "summary",
+              "value": "Product Demo \u2014 {{ $json.company_name }}"
+            },
+            {
+              "name": "start",
+              "value": "{{ $json.preferred_time }}"
+            },
+            {
+              "name": "attendees",
+              "value": "={{ [$json.lead_email, $json.sales_rep_email] }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save Demo Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO demos (lead_id, calendar_event_id, scheduled_at, sales_rep_id, status) VALUES ({{ $json.lead_id }}, '{{ $json.id }}', '{{ $json.preferred_time }}', {{ $json.sales_rep_id }}, 'scheduled')"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Demo Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.lead_email }}",
+        "subject": "Your Product Demo is Confirmed \u2014 {{ $json.company_name }}",
+        "message": "Hi {{ $json.lead_name }},\n\nYour product demo has been confirmed!\n\nDate & Time: {{ $json.preferred_time }}\nMeeting Link: {{ $json.meeting_link }}\nYour Host: {{ $json.sales_rep_name }}\n\nLooking forward to showing you what we can do!\n\nBest,\n{{ $json.sales_rep_name }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Demo Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Save Demo Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Demo Record": {
+      "main": [
+        [
+          {
+            "node": "Send Demo Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-34",
+  "tags": [
+    "crm",
+    "sales"
+  ]
+}

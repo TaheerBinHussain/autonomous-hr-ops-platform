@@ -1,0 +1,125 @@
+{
+  "name": "Monthly Financial Summary",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Monthly Financial Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Aggregate Financial Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as revenue, SUM(CASE WHEN status = 'unpaid' AND due_date < NOW() THEN amount ELSE 0 END) as overdue, COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count, COUNT(CASE WHEN status = 'unpaid' AND due_date < NOW() THEN 1 END) as overdue_count, (SELECT SUM(amount) FROM expenses WHERE status = 'approved' AND expense_date >= date_trunc('month', NOW() - INTERVAL '1 month')) as total_expenses FROM invoices WHERE created_at >= date_trunc('month', NOW() - INTERVAL '1 month')"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format CFO Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst profit = d.revenue - d.total_expenses;\nconst report = `Monthly Financial Summary\\n${'='.repeat(40)}\\n` +\n  `Revenue: $${parseFloat(d.revenue).toLocaleString()} (${d.paid_count} invoices)\\n` +\n  `Expenses: $${parseFloat(d.total_expenses).toLocaleString()}\\n` +\n  `Net Profit: $${parseFloat(profit).toLocaleString()}\\n` +\n  `Overdue AR: $${parseFloat(d.overdue).toLocaleString()} (${d.overdue_count} invoices)\\n` +\n  `Profit Margin: ${(profit/d.revenue*100).toFixed(1)}%`;\nreturn [{json:{report, profit}}];"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send CFO Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "cfo@company.com",
+        "subject": "Monthly Financial Summary \u2014 {{ $now.format('MMMM YYYY') }}",
+        "message": "={{ $json.report }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monthly Financial Schedule": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Financial Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Financial Data": {
+      "main": [
+        [
+          {
+            "node": "Format CFO Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format CFO Report": {
+      "main": [
+        [
+          {
+            "node": "Send CFO Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-47",
+  "tags": [
+    "invoice",
+    "finance",
+    "reporting"
+  ]
+}

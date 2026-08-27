@@ -1,0 +1,143 @@
+{
+  "name": "Proposal Delivery",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Proposal Approved Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal-delivery",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Get Proposal & Client Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.*, ra.client_name, ra.submission_deadline, c.email as client_email, c.contact_name FROM proposals p JOIN rfp_analyses ra ON p.rfp_id = ra.rfp_id JOIN clients c ON ra.client_id = c.id WHERE p.id = {{ $json.proposal_id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Prepare Delivery Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "tracking_pixel",
+              "value": "=https://tracking.company.com/pixel/{{ $json.proposal_id }}.png",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "proposal_url",
+              "value": "=http://minio:9000/proposals/{{ $json.proposal_id }}.pdf",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "expiry_date",
+              "value": "={{ $json.submission_deadline }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Proposal to Client",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.client_email }}",
+        "subject": "Proposal for {{ $json.rfp_title }} \u2014 {{ $json.client_name }}",
+        "message": "Dear {{ $json.contact_name }},\n\nThank you for the opportunity to respond to your RFP for {{ $json.rfp_title }}.\n\nPlease find our proposal attached and accessible at the link below:\n\n\ud83d\udcc4 Download Proposal: {{ $json.proposal_url }}\n\nProposal valid until: {{ $json.expiry_date }}\n\nWe would love to discuss how we can help {{ $json.client_name }} achieve its goals. Please feel free to reach out with any questions.\n\nBest regards,\nBusiness Development Team\n\n<img src='{{ $json.tracking_pixel }}' width='1' height='1' />",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Proposal Approved Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Proposal & Client Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Proposal & Client Details": {
+      "main": [
+        [
+          {
+            "node": "Prepare Delivery Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Delivery Data": {
+      "main": [
+        [
+          {
+            "node": "Send Proposal to Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-prop-100",
+  "tags": [
+    "proposals",
+    "email",
+    "tracking"
+  ]
+}

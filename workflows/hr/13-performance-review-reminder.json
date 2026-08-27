@@ -1,0 +1,131 @@
+{
+  "name": "Performance Review Reminder",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Monthly Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Active Employees",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT e.*, m.email as manager_email FROM employees e JOIN employees m ON e.manager_id = m.id WHERE e.status = 'active' AND (e.last_review_date IS NULL OR e.last_review_date < NOW() - INTERVAL '3 months')"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Send Review Reminder to Manager",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.manager_email }}",
+        "subject": "Performance Review Due: {{ $json.name }}",
+        "message": "Hi,\n\nIt's time to conduct the quarterly performance review for {{ $json.name }} ({{ $json.role }}).\n\nPlease complete the review by {{ $json.review_due_date }}.\n\nAccess the review form here: https://hr-portal.company.com/reviews/new?employee_id={{ $json.id }}\n\nHR Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Log Review Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO review_reminders (employee_id, sent_at) VALUES ({{ $json.id }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monthly Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch Active Employees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Active Employees": {
+      "main": [
+        [
+          {
+            "node": "Send Review Reminder to Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Review Reminder to Manager": {
+      "main": [
+        [
+          {
+            "node": "Log Review Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-13",
+  "tags": [
+    "hr",
+    "performance"
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "name": "Payment Received",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Payment Gateway Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "payment-received",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Update Invoice Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET status = 'paid', paid_at = NOW(), payment_method = '{{ $json.payment_method }}', transaction_id = '{{ $json.transaction_id }}' WHERE id = {{ $json.invoice_id }} RETURNING invoice_number, amount, customer_id"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Generate Receipt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/invoice/generate-receipt",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "invoice_id",
+              "value": "={{ $json.invoice_id }}"
+            },
+            {
+              "name": "amount",
+              "value": "={{ $json.amount }}"
+            },
+            {
+              "name": "transaction_id",
+              "value": "={{ $json.transaction_id }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Payment Receipt",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.client_email }}",
+        "subject": "Payment Confirmed \u2014 Receipt #{{ $json.receipt_number }}",
+        "message": "Dear {{ $json.client_name }},\n\nWe have received your payment of ${{ $json.amount }} for Invoice #{{ $json.invoice_number }}.\n\nTransaction ID: {{ $json.transaction_id }}\nPayment Date: {{ $json.paid_at }}\nReceipt: {{ $json.receipt_url }}\n\nThank you!\nFinance Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Payment Gateway Webhook": {
+      "main": [
+        [
+          {
+            "node": "Update Invoice Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Invoice Status": {
+      "main": [
+        [
+          {
+            "node": "Generate Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Receipt": {
+      "main": [
+        [
+          {
+            "node": "Send Payment Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-43",
+  "tags": [
+    "invoice",
+    "finance"
+  ]
+}

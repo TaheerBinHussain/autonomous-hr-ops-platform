@@ -1,0 +1,125 @@
+{
+  "name": "Proposal Approval",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Proposal Review Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal-approval",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Create Approval Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO proposal_approvals (proposal_id, rfp_id, submitted_by, status, approval_deadline, created_at) VALUES ({{ $json.proposal_id }}, '{{ $json.rfp_id }}', {{ $json.submitted_by }}, 'pending', NOW() + INTERVAL '2 days', NOW()) RETURNING approval_id"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Send Approval Request",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#proposals-review",
+        "text": ":clipboard: *Proposal Review Required!*\nProposal ID: {{ $json.proposal_id }}\nRFP: {{ $json.rfp_title }}\nClient: {{ $json.client_name }}\nValue: ${{ $json.proposal_value }}\nDeadline: {{ $json.submission_deadline }}\n\nView & Approve: https://portal.company.com/proposals/{{ $json.proposal_id }}/review\nApprove: https://portal.company.com/proposals/{{ $json.proposal_id }}/approve\nReject: https://portal.company.com/proposals/{{ $json.proposal_id }}/reject"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Track Approval Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE proposal_approvals SET reminder_sent_at = NOW() WHERE approval_id = {{ $json.approval_id }} AND status = 'pending'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Proposal Review Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create Approval Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Approval Record": {
+      "main": [
+        [
+          {
+            "node": "Send Approval Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Approval Request": {
+      "main": [
+        [
+          {
+            "node": "Track Approval Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-prop-99",
+  "tags": [
+    "proposals",
+    "workflow"
+  ]
+}

@@ -1,0 +1,147 @@
+{
+  "name": "KB Article Suggestion",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "New Ticket for KB Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support-kb-suggest",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Search Knowledge Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://qdrant:6333/collections/knowledge_base/points/search",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "vector",
+              "value": "={{ $json.query_embedding }}"
+            },
+            {
+              "name": "limit",
+              "value": "3"
+            },
+            {
+              "name": "with_payload",
+              "value": "true"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Article Suggestions",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "suggestions",
+              "value": "={{ $json.result.map((r, i) => `${i+1}. ${r.payload.title} (relevance: ${(r.score * 100).toFixed(0)}%) - https://kb.company.com/docs/${r.id}`).join('\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "has_suggestions",
+              "value": "={{ $json.result.length > 0 }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send KB Suggestions to Customer",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.customer_email }}",
+        "subject": "Helpful Articles for Your Request [TKT-{{ $json.ticket_id }}]",
+        "message": "Hi {{ $json.customer_name }},\n\nWhile our team reviews your ticket, here are some articles that may help:\n\n{{ $json.suggestions }}\n\nIf none of these resolve your issue, we will follow up shortly.\n\nSupport Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "New Ticket for KB Webhook": {
+      "main": [
+        [
+          {
+            "node": "Search Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Format Article Suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Article Suggestions": {
+      "main": [
+        [
+          {
+            "node": "Send KB Suggestions to Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-sup-92",
+  "tags": [
+    "support",
+    "knowledge_base"
+  ]
+}

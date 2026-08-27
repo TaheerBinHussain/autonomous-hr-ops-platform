@@ -1,0 +1,142 @@
+{
+  "name": "Tax Document Collection",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "January Annual Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 12
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Get All Active Clients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, email, tax_id, account_manager_email FROM customers WHERE status = 'active' AND billing_type IN ('annual', 'contract')"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Prepare Tax Request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "subject",
+              "value": "Annual Tax Document Collection \u2014 Action Required",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "body",
+              "value": "=Dear {{ $json.name }},\n\nAs part of our annual tax preparation, we need the following documents:\n1. W-9 / Tax Identification Form\n2. Previous year financial statements\n3. Updated business registration\n\nPlease submit via: https://portal.company.com/tax-docs/{{ $json.id }}\nDeadline: January 31st\n\nFinance Team",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Tax Request Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "January Annual Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get All Active Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Active Clients": {
+      "main": [
+        [
+          {
+            "node": "Prepare Tax Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Tax Request": {
+      "main": [
+        [
+          {
+            "node": "Send Tax Request Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-48",
+  "tags": [
+    "invoice",
+    "finance",
+    "compliance"
+  ]
+}

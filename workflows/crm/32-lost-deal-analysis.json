@@ -1,0 +1,137 @@
+{
+  "name": "Lost Deal Analysis",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Deal Lost Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deal-lost",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "AI Loss Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/crm/analyze-loss",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "deal_id",
+              "value": "={{ $json.deal_id }}"
+            },
+            {
+              "name": "loss_reason",
+              "value": "={{ $json.loss_reason }}"
+            },
+            {
+              "name": "competitor",
+              "value": "={{ $json.competitor }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save Loss Analysis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO deal_loss_analysis (deal_id, loss_reason, competitor, ai_insights, recurring_pattern, analyzed_at) VALUES ({{ $json.deal_id }}, '{{ $json.loss_reason }}', '{{ $json.competitor }}', '{{ $json.ai_insights }}', {{ $json.is_recurring_pattern }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Share Loss Insights",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#crm-sales-insights",
+        "text": ":chart_with_downwards_trend: Deal Lost Analysis\nDeal: *{{ $json.deal_name }}* (${{ $json.deal_value }})\nReason: {{ $json.loss_reason }}\nCompetitor: {{ $json.competitor }}\nInsight: {{ $json.ai_insights }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Deal Lost Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Loss Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Loss Analysis": {
+      "main": [
+        [
+          {
+            "node": "Save Loss Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Loss Analysis": {
+      "main": [
+        [
+          {
+            "node": "Share Loss Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-32",
+  "tags": [
+    "crm",
+    "ai",
+    "sales"
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "name": "Meeting Summary Email",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Meeting End Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meeting-summary-email",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Generate Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/meetings/summarize",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "transcript",
+              "value": "={{ $json.transcript_text }}"
+            },
+            {
+              "name": "meeting_id",
+              "value": "={{ $json.meeting_id }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Prepare Email for Each Participant",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const participants = $input.first().json.participants || [];\nconst summary = $input.first().json;\nreturn participants.map(p => ({\n  json: {\n    ...summary,\n    participant_email: p.email,\n    participant_name: p.name\n  }\n}));"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Summary to All Participants",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.participant_email }}",
+        "subject": "Meeting Summary: {{ $json.meeting_title }} \u2014 {{ $now.format('MMM DD, YYYY') }}",
+        "message": "Hi {{ $json.participant_name }},\n\nHere is the summary for today's meeting:\n\n{{ $json.summary }}\n\nKey Points:\n{{ $json.key_points.map(p => `\u2022 ${p}`).join('\\n') }}\n\nAction Items:\n{{ $json.action_items.map(a => `\u2022 [${a.assignee}] ${a.task} \u2014 Due: ${a.due_date}`).join('\\n') }}\n\nFull notes: https://meetings.company.com/{{ $json.meeting_id }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Meeting End Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email for Each Participant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email for Each Participant": {
+      "main": [
+        [
+          {
+            "node": "Send Summary to All Participants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-meet-83",
+  "tags": [
+    "meetings",
+    "email",
+    "ai"
+  ]
+}

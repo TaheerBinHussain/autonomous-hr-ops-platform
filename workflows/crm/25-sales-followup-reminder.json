@@ -1,0 +1,140 @@
+{
+  "name": "Sales Follow-up Reminder",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Daily Sales Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Find Inactive Deals",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.*, u.slack_id, u.name as rep_name FROM deals d JOIN users u ON d.assigned_to = u.id WHERE d.status = 'active' AND d.last_activity < NOW() - INTERVAL '3 days' AND d.stage NOT IN ('Closed Won', 'Closed Lost')"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Reminder Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "days_inactive",
+              "value": "={{ Math.floor((new Date() - new Date($json.last_activity)) / 86400000) }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "reminder",
+              "value": "=\u23f0 Deal *{{ $json.deal_name }}* has been inactive for {{ $json.days_inactive }} days. Last stage: {{ $json.stage }}. Value: ${{ $json.value }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Reminder to Rep",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "={{ $json.slack_id }}",
+        "text": "={{ $json.reminder }}\n\nPlease follow up or update the deal status."
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Sales Check": {
+      "main": [
+        [
+          {
+            "node": "Find Inactive Deals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Inactive Deals": {
+      "main": [
+        [
+          {
+            "node": "Format Reminder Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Reminder Message": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder to Rep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-25",
+  "tags": [
+    "crm",
+    "sales"
+  ]
+}

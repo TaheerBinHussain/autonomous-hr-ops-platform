@@ -1,0 +1,149 @@
+{
+  "name": "Interview Scheduling",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Interview Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "interview-schedule",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "AI Schedule Interview",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/hr/interview-schedule",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "candidate_id",
+              "value": "={{ $json.candidate_id }}"
+            },
+            {
+              "name": "interviewer_id",
+              "value": "={{ $json.interviewer_id }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Prepare Confirmation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "candidate_email",
+              "value": "={{ $json.candidate_email }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "interview_time",
+              "value": "={{ $json.scheduled_time }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "meeting_link",
+              "value": "={{ $json.meeting_link }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.candidate_email }}",
+        "subject": "Interview Scheduled \u2014 {{ $json.job_title }}",
+        "message": "Dear {{ $json.candidate_name }},\n\nYour interview has been scheduled for {{ $json.interview_time }}.\nJoin here: {{ $json.meeting_link }}\n\nBest regards,\nHR Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Interview Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Schedule Interview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Schedule Interview": {
+      "main": [
+        [
+          {
+            "node": "Prepare Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-04",
+  "tags": [
+    "hr",
+    "recruiting"
+  ]
+}

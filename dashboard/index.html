@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Automation Platform — Week 5</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ═══════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep:      #0a0a1a;
+      --bg-mid:       #0d1117;
+      --bg-card:      rgba(255,255,255,0.04);
+      --bg-card-hov:  rgba(255,255,255,0.07);
+      --border:       rgba(255,255,255,0.08);
+      --border-hov:   rgba(255,255,255,0.16);
+      --blue:         #00d4ff;
+      --purple:       #8b5cf6;
+      --green:        #10b981;
+      --orange:       #f59e0b;
+      --red:          #ef4444;
+      --text-1:       #f0f6fc;
+      --text-2:       #8b949e;
+      --text-3:       #484f58;
+      --sidebar-w:    260px;
+      --radius:       16px;
+      --radius-sm:    10px;
+      --blur:         20px;
+      --transition:   0.3s cubic-bezier(0.16,1,0.3,1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, var(--bg-deep) 0%, var(--bg-mid) 50%, #0f0a1e 100%);
+      color: var(--text-1);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SCROLL PROGRESS BAR
+    ═══════════════════════════════════════════════ */
+    #scroll-progress {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      width: 0%;
+      background: linear-gradient(90deg, var(--blue), var(--purple), var(--green));
+      z-index: 9999;
+      transition: width 0.1s linear;
+      border-radius: 0 2px 2px 0;
+    }
+
+    /* ═══════════════════════════════════════════════
+       FLOATING BACKGROUND ORBS
+    ═══════════════════════════════════════════════ */
+    .orb-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      animation: floatOrb linear infinite;
+    }
+    .orb-1 { width: 600px; height: 600px; background: var(--blue);   top: -200px; left: -100px; animation-duration: 25s; }
+    .orb-2 { width: 500px; height: 500px; background: var(--purple); top: 30%;   right: -150px; animation-duration: 30s; animation-delay: -10s; }
+    .orb-3 { width: 400px; height: 400px; background: var(--green);  bottom: -100px; left: 30%; animation-duration: 20s; animation-delay: -5s; }
+    .orb-4 { width: 300px; height: 300px; background: var(--orange); top: 60%; left: 10%; animation-duration: 35s; animation-delay: -15s; }
+    .orb-5 { width: 250px; height: 250px; background: var(--red);    top: 20%; left: 50%; animation-duration: 28s; animation-delay: -8s; }
+
+    @keyframes floatOrb {
+      0%   { transform: translate(0, 0) scale(1); }
+      25%  { transform: translate(40px, -60px) scale(1.05); }
+      50%  { transform: translate(-30px, 40px) scale(0.95); }
+      75%  { transform: translate(50px, 30px) scale(1.02); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+
+    /* Particle dots */
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .particle {
+      position: absolute;
+      width: 2px; height: 2px;
+      background: var(--blue);
+      border-radius: 50%;
+      opacity: 0;
+      animation: particleFly linear infinite;
+    }
+    @keyframes particleFly {
+      0%   { opacity: 0; transform: translateY(100vh) scale(0); }
+      10%  { opacity: 0.6; }
+      90%  { opacity: 0.3; }
+      100% { opacity: 0; transform: translateY(-10vh) scale(1.5); }
+    }
+
+    /* ═══════════════════════════════════════════════
+       LAYOUT
+    ═══════════════════════════════════════════════ */
+    .layout {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SIDEBAR
+    ═══════════════════════════════════════════════ */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: rgba(10,10,26,0.85);
+      backdrop-filter: blur(var(--blur));
+      border-right: 1px solid var(--border);
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: transform var(--transition);
+    }
+
+    .sidebar-logo {
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px rgba(0,212,255,0.3);
+    }
+    .logo-text { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; line-height: 1.2; }
+    .logo-text span { display: block; color: var(--text-2); font-size: 11px; font-weight: 400; margin-top: 2px; }
+
+    .sidebar-clock {
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-2);
+    }
+    #live-clock { font-family: 'Space Grotesk', monospace; color: var(--blue); font-weight: 600; font-size: 13px; }
+
+    .sidebar-nav { padding: 16px 0; flex: 1; overflow-y: auto; }
+    .nav-section-label {
+      padding: 12px 24px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: var(--text-3);
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 24px;
+      cursor: pointer;
+      color: var(--text-2);
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: all var(--transition);
+      border-left: 3px solid transparent;
+      position: relative;
+    }
+    .nav-item:hover { color: var(--text-1); background: rgba(255,255,255,0.04); border-left-color: var(--purple); }
+    .nav-item.active { color: var(--blue); background: rgba(0,212,255,0.06); border-left-color: var(--blue); }
+    .nav-item.active .nav-icon { filter: drop-shadow(0 0 6px var(--blue)); }
+
+    .nav-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--blue);
+      color: #000;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+
+    .sidebar-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+    }
+    .sidebar-footer-text { font-size: 11px; color: var(--text-3); line-height: 1.6; }
+
+    /* ═══════════════════════════════════════════════
+       MAIN CONTENT
+    ═══════════════════════════════════════════════ */
+    .main-content {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════════
+       HERO SECTION
+    ═══════════════════════════════════════════════ */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 60px 48px 56px;
+      background: linear-gradient(135deg,
+        rgba(0,212,255,0.08) 0%,
+        rgba(139,92,246,0.08) 50%,
+        rgba(16,185,129,0.05) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2300d4ff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      opacity: 0.5;
+    }
+    .hero-inner { position: relative; z-index: 1; }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,212,255,0.1);
+      border: 1px solid rgba(0,212,255,0.25);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 30px;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+    }
+    .hero-badge-dot {
+      width: 7px; height: 7px;
+      background: var(--blue);
+      border-radius: 50%;
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,212,255,0.6); }
+      50%       { box-shadow: 0 0 0 8px rgba(0,212,255,0); }
+    }
+
+    .hero-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--text-1) 0%, var(--blue) 50%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradientShift 6s ease-in-out infinite;
+      background-size: 200% 200%;
+    }
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50%       { background-position: 100% 50%; }
+    }
+
+    .hero-subtitle {
+      font-size: 16px;
+      color: var(--text-2);
+      margin-bottom: 48px;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+    .hero-subtitle strong { color: var(--blue); }
+
+    /* Hero stats */
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 20px;
+    }
+    .hero-stat {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      transition: all var(--transition);
+    }
+    .hero-stat:hover { border-color: var(--blue); background: rgba(0,212,255,0.06); transform: translateY(-4px); }
+    .hero-stat-number {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      display: block;
+      animation: statPulse 3s ease-in-out infinite;
+    }
+    @keyframes statPulse {
+      0%, 100% { filter: drop-shadow(0 0 0px transparent); }
+      50%       { filter: drop-shadow(0 0 8px rgba(0,212,255,0.5)); }
+    }
+    .hero-stat-label { font-size: 12px; color: var(--text-2); margin-top: 8px; font-weight: 500; letter-spacing: 0.3px; }
+
+    /* ═══════════════════════════════════════════════
+       SECTION HEADERS
+    ═══════════════════════════════════════════════ */
+    .section { padding: 48px 48px 0; }
+    .section:last-child { padding-bottom: 48px; }
+
+    .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+    .section-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-1);
+    }
+    .section-subtitle { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+    .section-badge {
+      margin-left: auto;
+      background: rgba(0,212,255,0.1);
+      border: 1px solid rgba(0,212,255,0.2);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* ═══════════════════════════════════════════════
+       GLASS CARD BASE
+    ═══════════════════════════════════════════════ */
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(var(--blur));
+      transition: all var(--transition);
+    }
+    .glass-card:hover {
+      background: var(--bg-card-hov);
+      border-color: var(--border-hov);
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+    }
+
+    /* ═══════════════════════════════════════════════
+       QUICK ACTIONS
+    ═══════════════════════════════════════════════ */
+    .quick-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .action-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      backdrop-filter: blur(var(--blur));
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .action-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+    .action-card:hover::before { opacity: 1; }
+    .action-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--border-hov);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+    .action-card[data-color="blue"]::before   { background: linear-gradient(90deg, var(--blue), var(--purple)); }
+    .action-card[data-color="green"]::before  { background: linear-gradient(90deg, var(--green), var(--blue)); }
+    .action-card[data-color="purple"]::before { background: linear-gradient(90deg, var(--purple), var(--red)); }
+    .action-card[data-color="orange"]::before { background: linear-gradient(90deg, var(--orange), var(--red)); }
+    .action-card[data-color="red"]::before    { background: linear-gradient(90deg, var(--red), var(--purple)); }
+    .action-card[data-color="teal"]::before   { background: linear-gradient(90deg, var(--green), var(--blue)); }
+
+    .action-card-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .action-card-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .action-card-title { font-weight: 700; font-size: 15px; color: var(--text-1); }
+    .action-card-subtitle { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+    .action-card-desc { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-bottom: 20px; }
+    .action-btn {
+      width: 100%;
+      padding: 11px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .action-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .btn-blue   { background: linear-gradient(135deg, var(--blue), #0099bb);   color: #000; }
+    .btn-green  { background: linear-gradient(135deg, var(--green), #059669);  color: #fff; }
+    .btn-purple { background: linear-gradient(135deg, var(--purple), #7c3aed); color: #fff; }
+    .btn-orange { background: linear-gradient(135deg, var(--orange), #d97706); color: #000; }
+    .btn-red    { background: linear-gradient(135deg, var(--red), #dc2626);    color: #fff; }
+    .btn-teal   { background: linear-gradient(135deg, #06b6d4, var(--green));  color: #000; }
+
+    /* ═══════════════════════════════════════════════
+       WORKFLOW CATEGORIES
+    ═══════════════════════════════════════════════ */
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .category-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      backdrop-filter: blur(var(--blur));
+      transition: all var(--transition);
+    }
+    .category-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--border-hov);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    .category-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .category-emoji { font-size: 28px; line-height: 1; }
+    .category-count {
+      background: rgba(0,212,255,0.1);
+      border: 1px solid rgba(0,212,255,0.2);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .category-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-1);
+      margin-bottom: 6px;
+    }
+    .category-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.6; margin-bottom: 18px; }
+    .progress-bar-wrap { margin-bottom: 18px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-2); margin-bottom: 6px; }
+    .progress-label span:last-child { color: var(--green); font-weight: 600; }
+    .progress-track {
+      height: 5px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), #059669);
+      border-radius: 10px;
+      width: 0%;
+      transition: width 1.5s cubic-bezier(0.16,1,0.3,1);
+      box-shadow: 0 0 8px rgba(16,185,129,0.4);
+    }
+    .n8n-btn {
+      width: 100%;
+      padding: 9px 18px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-1);
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .n8n-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--blue); color: var(--blue); }
+
+    /* ═══════════════════════════════════════════════
+       LIVE METRICS
+    ═══════════════════════════════════════════════ */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      backdrop-filter: blur(var(--blur));
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--border-hov);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    .metric-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .metric-label { font-size: 12.5px; color: var(--text-2); font-weight: 500; }
+    .metric-icon { font-size: 20px; }
+    .metric-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-1);
+      margin-bottom: 12px;
+      line-height: 1;
+    }
+    .metric-sparkline { display: flex; justify-content: flex-end; }
+    .metric-trend { font-size: 11px; color: var(--green); margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+
+    /* Live pulse indicator */
+    .live-indicator {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--green);
+      margin-left: 10px;
+    }
+    .live-dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: livePulse 1.5s ease-in-out infinite; }
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    /* ═══════════════════════════════════════════════
+       ACTIVITY FEED
+    ═══════════════════════════════════════════════ */
+    .feed-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(var(--blur));
+      overflow: hidden;
+    }
+    .feed-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .feed-header-title { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+    #activity-feed { padding: 8px 0; max-height: 480px; overflow-y: auto; }
+    #activity-feed::-webkit-scrollbar { width: 4px; }
+    #activity-feed::-webkit-scrollbar-track { background: transparent; }
+    #activity-feed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    .feed-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 24px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background var(--transition);
+    }
+    .feed-item:hover { background: rgba(255,255,255,0.03); }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-icon { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+    .feed-body { flex: 1; min-width: 0; }
+    .feed-title { font-size: 13.5px; font-weight: 600; color: var(--text-1); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .feed-detail { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+    .feed-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+    .feed-time { font-size: 11px; color: var(--text-3); font-family: 'Space Grotesk', monospace; flex-shrink: 0; white-space: nowrap; }
+
+    /* ═══════════════════════════════════════════════
+       SERVICES STATUS
+    ═══════════════════════════════════════════════ */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .service-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      backdrop-filter: blur(var(--blur));
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .service-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-hov);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    }
+    .svc-icon { font-size: 24px; flex-shrink: 0; }
+    .svc-info { flex: 1; min-width: 0; }
+    .svc-name { font-size: 13.5px; font-weight: 600; color: var(--text-1); margin-bottom: 4px; }
+    .svc-port { font-size: 11px; color: var(--text-3); font-family: 'Space Grotesk', monospace; }
+    .svc-status { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+    .svc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex-shrink: 0; transition: all 0.4s ease; }
+    .svc-status-label { font-size: 11.5px; font-weight: 600; color: var(--text-2); transition: color 0.4s ease; }
+
+    /* ═══════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════ */
+    .footer {
+      margin-left: 0;
+      padding: 32px 48px;
+      border-top: 1px solid var(--border);
+      background: rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .footer-left { font-size: 13px; color: var(--text-2); line-height: 1.7; }
+    .footer-left strong { color: var(--text-1); }
+    .footer-right { display: flex; align-items: center; gap: 16px; }
+    .footer-link {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px;
+      color: var(--text-2);
+      text-decoration: none;
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+    }
+    .footer-link:hover { color: var(--text-1); border-color: var(--border-hov); background: rgba(255,255,255,0.04); }
+    .powered-by { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .tech-pill {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11.5px;
+      color: var(--text-2);
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════
+       MODALS
+    ═══════════════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .modal-overlay.modal-visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(8px);
+    }
+    .modal-content {
+      position: relative;
+      z-index: 1;
+      background: linear-gradient(135deg, rgba(13,17,23,0.98), rgba(10,10,26,0.98));
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 36px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      backdrop-filter: blur(30px);
+      box-shadow: 0 40px 120px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05);
+      transform: scale(0.94) translateY(10px);
+      transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+    }
+    .modal-overlay.modal-visible .modal-content {
+      transform: scale(1) translateY(0);
+    }
+    .modal-content::-webkit-scrollbar { width: 4px; }
+    .modal-content::-webkit-scrollbar-track { background: transparent; }
+    .modal-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    .modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
+    .modal-header-left { display: flex; align-items: center; gap: 14px; }
+    .modal-header-icon {
+      width: 46px; height: 46px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .modal-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-1); }
+    .modal-subtitle { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+    .modal-close {
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      color: var(--text-2);
+      transition: all var(--transition);
+      flex-shrink: 0;
+    }
+    .modal-close:hover { background: rgba(239,68,68,0.15); border-color: var(--red); color: var(--red); }
+
+    /* Form elements */
+    .form-group { margin-bottom: 20px; }
+    .form-label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-2);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-1);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      padding: 12px 16px;
+      outline: none;
+      transition: all var(--transition);
+      resize: vertical;
+    }
+    .form-input::placeholder, .form-textarea::placeholder { color: var(--text-3); }
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      border-color: var(--blue);
+      background: rgba(0,212,255,0.04);
+      box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+    }
+    .form-select option { background: #0d1117; color: var(--text-1); }
+    .form-textarea { min-height: 110px; }
+
+    .modal-submit {
+      width: 100%;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .modal-submit:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,212,255,0.25); }
+    .modal-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* Result area */
+    .modal-result { margin-top: 24px; display: none; }
+    .json-viewer {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      font-family: 'Space Grotesk', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .json-key  { color: var(--blue); }
+    .json-str  { color: var(--green); }
+    .json-num  { color: var(--orange); }
+    .json-bool { color: var(--purple); }
+    .json-null { color: var(--red); }
+    .result-error {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      color: var(--red);
+      font-size: 13px;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SPINNER
+    ═══════════════════════════════════════════════ */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══════════════════════════════════════════════
+       REVEAL ANIMATIONS
+    ═══════════════════════════════════════════════ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    }
+    .reveal.revealed { opacity: 1; transform: translateY(0); }
+
+    /* ═══════════════════════════════════════════════
+       TOOLTIP
+    ═══════════════════════════════════════════════ */
+    .global-tooltip {
+      position: fixed;
+      z-index: 9999;
+      background: rgba(20,20,40,0.95);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--text-1);
+      pointer-events: none;
+      white-space: nowrap;
+      opacity: 0;
+      display: none;
+      transition: opacity 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    /* ═══════════════════════════════════════════════
+       SIDEBAR TOGGLE (MOBILE)
+    ═══════════════════════════════════════════════ */
+    #sidebar-toggle {
+      display: none;
+      position: fixed;
+      top: 16px; left: 16px;
+      z-index: 200;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 42px; height: 42px;
+      align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* ═══════════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════════ */
+    @media (max-width: 1024px) {
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.sidebar-open { transform: translateX(0); }
+      #sidebar-toggle { display: flex; }
+      .main-content { margin-left: 0; }
+      .hero, .section, .footer { padding-left: 24px; padding-right: 24px; }
+    }
+    @media (max-width: 640px) {
+      .hero { padding: 40px 20px 36px; }
+      .section { padding: 32px 20px 0; }
+      .hero-stats { grid-template-columns: repeat(2, 1fr); }
+      .hero-title { font-size: 2rem; }
+      .modal-content { padding: 24px; }
+      .footer { padding: 24px 20px; }
+    }
+
+    /* ═══════════════════════════════════════════════
+       DIVIDER
+    ═══════════════════════════════════════════════ */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 48px 0 0;
+    }
+
+    /* Two-column layout for activity + services */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+
+<body>
+  <!-- Scroll Progress -->
+  <div id="scroll-progress"></div>
+
+  <!-- Mobile Sidebar Toggle -->
+  <button id="sidebar-toggle">☰</button>
+
+  <!-- Background orbs -->
+  <div class="orb-container">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+    <div class="orb orb-5"></div>
+  </div>
+
+  <!-- Particles -->
+  <div class="particles" id="particles-container"></div>
+
+  <div class="layout">
+
+    <!-- ═══════════════════════════════════════════
+         SIDEBAR
+    ═══════════════════════════════════════════ -->
+    <aside id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-mark">
+          <div class="logo-icon">🤖</div>
+          <div class="logo-text">
+            AI Platform
+            <span>Week 5 — Automation Suite</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-clock">
+        <span>⏰</span>
+        <span id="live-clock">00:00:00</span>
+        <span style="margin-left:auto;font-size:11px;">Live</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main</div>
+        <div class="nav-item active">
+          <span class="nav-icon">📊</span>
+          Dashboard
+          <span class="nav-badge">Live</span>
+        </div>
+
+        <div class="nav-section-label">Workflows</div>
+        <div class="nav-item">
+          <span class="nav-icon">👥</span>
+          HR & Recruitment
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">🎯</span>
+          CRM & Sales
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">💳</span>
+          Invoice & Finance
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">📧</span>
+          Email & Comms
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">🧠</span>
+          Knowledge Base
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">📄</span>
+          Documents
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">🎙️</span>
+          Meetings
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">🎫</span>
+          Support
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">📝</span>
+          Proposals
+        </div>
+
+        <div class="nav-section-label">Tools</div>
+        <div class="nav-item" onclick="window.open('http://localhost:5678','_blank')">
+          <span class="nav-icon">⚙️</span>
+          Open n8n
+        </div>
+        <div class="nav-item" onclick="window.open('http://localhost:8000/docs','_blank')">
+          <span class="nav-icon">🔌</span>
+          API Docs
+        </div>
+        <div class="nav-item" onclick="window.open('http://localhost:3001','_blank')">
+          <span class="nav-icon">📈</span>
+          Grafana
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-footer-text">
+          <strong style="color:var(--text-1)">100 Workflows Active</strong><br/>
+          9 Categories · 8 Services<br/>
+          <span style="color:var(--green)">● All systems operational</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══════════════════════════════════════════
+         MAIN CONTENT
+    ═══════════════════════════════════════════ -->
+    <main class="main-content">
+
+      <!-- ─── HERO ─── -->
+      <section class="hero">
+        <div class="hero-inner">
+          <div class="hero-badge">
+            <div class="hero-badge-dot"></div>
+            Week 5 — AI Platform Engineering Bootcamp
+          </div>
+
+          <h1 class="hero-title">AI Automation Platform</h1>
+          <p class="hero-subtitle">
+            <strong>Week 5 — Company Automation Suite</strong><br/>
+            Fully automated enterprise workflows powered by n8n, FastAPI &amp; OpenAI GPT-4.
+            End-to-end automation across HR, CRM, Finance, Support and more.
+          </p>
+
+          <div class="hero-stats">
+            <div class="hero-stat" data-tip="Total active n8n workflows">
+              <span class="hero-stat-number" data-counter="100" data-duration="2200">0</span>
+              <div class="hero-stat-label">Active Workflows</div>
+            </div>
+            <div class="hero-stat" data-tip="Workflow categories deployed">
+              <span class="hero-stat-number" data-counter="9" data-duration="1800">0</span>
+              <div class="hero-stat-label">Categories</div>
+            </div>
+            <div class="hero-stat" data-tip="Platform uptime hours">
+              <span class="hero-stat-number" style="font-size:2rem;">24/7</span>
+              <div class="hero-stat-label">Automation</div>
+            </div>
+            <div class="hero-stat" data-tip="Manual tasks replaced by AI">
+              <span class="hero-stat-number" data-counter="0" data-duration="1200">–</span>
+              <div class="hero-stat-label">Manual Tasks</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── QUICK ACTIONS ─── -->
+      <section class="section">
+        <div class="section-header reveal">
+          <div class="section-icon" style="background:rgba(0,212,255,0.12);">⚡</div>
+          <div>
+            <div class="section-title">Quick Actions</div>
+            <div class="section-subtitle">Trigger AI workflows instantly — real-time API calls</div>
+          </div>
+          <div class="section-badge">6 Actions</div>
+        </div>
+
+        <div class="quick-actions-grid">
+
+          <!-- Screen Resume -->
+          <div class="action-card reveal" data-color="blue">
+            <div class="action-card-header">
+              <div class="action-card-icon" style="background:rgba(0,212,255,0.12);">📋</div>
+              <div>
+                <div class="action-card-title">Screen Resume</div>
+                <div class="action-card-subtitle">HR &amp; Recruitment</div>
+              </div>
+            </div>
+            <div class="action-card-desc">AI-powered resume screening against job requirements. Scores candidates and provides hiring recommendations.</div>
+            <button class="action-btn btn-blue" id="btn-resume">📋 Screen Resume</button>
+          </div>
+
+          <!-- Score Lead -->
+          <div class="action-card reveal" data-color="green" style="transition-delay:0.05s">
+            <div class="action-card-header">
+              <div class="action-card-icon" style="background:rgba(16,185,129,0.12);">🎯</div>
+              <div>
+                <div class="action-card-title">Score Lead</div>
+                <div class="action-card-subtitle">CRM &amp; Sales</div>
+              </div>
+            </div>
+            <div class="action-card-desc">Automatically score and classify sales leads. Get deal value estimates and next-action recommendations.</div>
+            <button class="action-btn btn-green" id="btn-lead">🎯 Score Lead</button>
+          </div>
+
+          <!-- Parse Invoice -->
+          <div class="action-card reveal" data-color="orange" style="transition-delay:0.1s">
+            <div class="action-card-header">
+              <div class="action-card-icon" style="background:rgba(245,158,11,0.12);">💳</div>
+              <div>
+                <div class="action-card-title">Parse Invoice</div>
+                <div class="action-card-subtitle">Invoice &amp; Finance</div>
+              </div>
+            </div>
+            <div class="action-card-desc">Extract structured data from any invoice format. Line items, totals, vendor info — all parsed by AI.</div>
+            <button class="action-btn btn-orange" id="btn-invoice">💳 Parse Invoice</button>
+          </div>
+
+          <!-- Summarize Meeting -->
+          <div class="action-card reveal" data-color="purple" style="transition-delay:0.15s">
+            <div class="action-card-header">
+              <div class="action-card-icon" style="background:rgba(139,92,246,0.12);">🎙️</div>
+              <div>
+                <div class="action-card-title">Summarize Meeting</div>
+                <div class="action-card-subtitle">Meetings &amp; Collaboration</div>
+              </div>
+            </div>
+            <div class="action-card-desc">Convert meeting transcripts into structured summaries with action items, decisions and follow-ups.</div>
+            <button class="action-btn btn-purple" id="btn-meeting">🎙️ Summarize Meeting</button>
+          </div>
+
+          <!-- Generate Proposal -->
+          <div class="action-card reveal" data-color="red" style="transition-delay:0.2s">
+            <div class="action-card-header">
+              <div class="action-card-icon" style="background:rgba(239,68,68,0.12);">📝</div>
+              <div>
+                <div class="action-card-title">Generate Proposal</div>
+                <div class="action-card-subtitle">Proposals &amp; RFPs</div>
+              </div>
+            </div>
+            <div class="action-card-desc">Parse RFP documents and auto-generate structured proposal responses with timeline and cost estimates.</div>
+            <button class="action-btn btn-red" id="btn-proposal">📝 Parse RFP</button>
+          </div>
+
+          <!-- Support Ticket -->
+          <div class="action-card reveal" data-color="teal" style="transition-delay:0.25s">
+            <div class="action-card-header">
+              <div class="action-card-icon" style="background:rgba(6,182,212,0.12);">🎫</div>
+              <div>
+                <div class="action-card-title">Support Ticket</div>
+                <div class="action-card-subtitle">Customer Support</div>
+              </div>
+            </div>
+            <div class="action-card-desc">Classify support tickets by category, priority and sentiment. Auto-routes to correct team with suggested response.</div>
+            <button class="action-btn btn-teal" id="btn-support">🎫 Classify Ticket</button>
+          </div>
+
+        </div>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <!-- ─── WORKFLOW CATEGORIES ─── -->
+      <section class="section">
+        <div class="section-header reveal">
+          <div class="section-icon" style="background:rgba(139,92,246,0.12);">🔄</div>
+          <div>
+            <div class="section-title">Workflow Categories</div>
+            <div class="section-subtitle">All automation modules — 100 workflows across 9 categories</div>
+          </div>
+          <div class="section-badge">100 Total</div>
+        </div>
+
+        <div class="categories-grid">
+
+          <!-- HR -->
+          <div class="category-card reveal">
+            <div class="category-header">
+              <div class="category-emoji">👥</div>
+              <div class="category-count">20 Workflows</div>
+            </div>
+            <div class="category-name">HR &amp; Recruitment</div>
+            <div class="category-desc">Resume screening, onboarding automation, offer letter generation, employee lifecycle management.</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-label"><span>Status</span><span>100% Active</span></div>
+              <div class="progress-track"><div class="progress-fill" data-width="100"></div></div>
+            </div>
+            <button class="n8n-btn" onclick="window.open('http://localhost:5678','_blank')">⚙️ Open in n8n</button>
+          </div>
+
+          <!-- CRM -->
+          <div class="category-card reveal" style="transition-delay:0.05s">
+            <div class="category-header">
+              <div class="category-emoji">🎯</div>
+              <div class="category-count">15 Workflows</div>
+            </div>
+            <div class="category-name">CRM &amp; Sales</div>
+            <div class="category-desc">Lead scoring, pipeline automation, follow-up sequences, deal tracking, CRM data enrichment.</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-label"><span>Status</span><span>100% Active</span></div>
+              <div class="progress-track"><div class="progress-fill" data-width="100"></div></div>
+            </div>
+            <button class="n8n-btn" onclick="window.open('http://localhost:5678','_blank')">⚙️ Open in n8n</button>
+          </div>
+
+          <!-- Invoice -->
+          <div class="category-card reveal" style="transition-delay:0.1s">
+            <div class="category-header">
+              <div class="category-emoji">💳</div>
+              <div class="category-count">15 Workflows</div>
+            </div>
+            <div class="category-name">Invoice &amp; Finance</div>
+            <div class="category-desc">Invoice parsing, payment reminders, expense reporting, financial reconciliation, QuickBooks sync.</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-label"><span>Status</span><span>100% Active</span></div>
+              <div class="progress-track"><div class="progress-fill" data-width="100"></div></div>
+            </div>
+            <button class="n8n-btn" onclick="window.open('http://localhost:5678','_blank')">⚙️ Open in n8n</button>
+          </div>
+
+          <!-- Email -->
+          <div class="category-card reveal" style="transition-delay:0.15s">
+            <div class="category-header">
+              <div class="category-emoji">📧</div>
+              <div class="category-count">10 Workflows</div>
+            </div>
+            <div class="category-name">Email &amp; Comms</div>
+            <div class="category-desc">Drip campaigns, automated replies, newsletter generation, email classification, inbox triage.</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-label"><span>Status</span><span>100% Active</span></div>
+              <div class="progress-track"><div class="progress-fill" data-width="100"></div></div>
+            </div>
+            <button class="n8n-btn" onclick="window.open('http://localhost:5678','_blank')">⚙️ Open in n8n</button>
+          </div>
+
+          <!-- Knowledge Base -->
+          <div class="category-card reveal" style="transition-delay:0.2s">
+            <div class="category-header">
+              <div class="category-emoji">🧠</div>
+              <div class="category-count">10 Workflows</div>
+            </div>
+            <div class="category-name">Knowledge Base</div>
+            <div class="category-desc">Article creation, vector embedding, RAG pipeline, semantic search, knowledge graph management.</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-label"><span>Status</span><span>100% Active</span></div>
+              <div class="progress-track"><div class="progress-fill" data-width="100"></div></div>
+            </div>
+            <button class="n8n-btn" onclick="window.open('http://localhost:5678','_blank')">⚙️ Open in n8n</button>
+          </div>
+
+          <!-- Document Parsing -->
+          <div class="category-card reveal" style="transition-delay:0.25s">
+            <div class="category-header">
+              <div class="category-emoji">📄</div>
+              <div class="category-count">10 Workflows</div>
+            </div>
+            <div class="category-name">Document Parsing</div>
+            <div class="category-desc">PDF extraction, contract analysis, NDA clause detection, form parsing, document classification.</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-label"><span>Status</span><span>100% Active</span></div>
+              <div class="progress-track"><div class="progress-fill" data-width="100"></div></div>
+            </div>
+            <button class="n8n-btn" onclick="window.open('http://localhost:5678','_blank')">⚙️ Open in n8n</button>
+          </div>
+
+          <!-- Meetings -->
+          <div class="category-card reveal" style="transition-delay:0.3s">
+            <div class="category-header">
+              <div class="category-emoji">🎙️</div>
+              <div class="category-count">5 Workflows</div>
+            </div>
+            <div class="category-name">Meeting Summary</div>
+            <div class="category-desc">Transcript summarisation, action item extraction, follow-up scheduling, meeting insights.</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-label"><span>Status</span><span>100% Active</span></div>
+              <div class="progress-track"><div class="progress-fill" data-width="100"></div></div>
+            </div>
+            <button class="n8n-btn" onclick="window.open('http://localhost:5678','_blank')">⚙️ Open in n8n</button>
+          </div>
+
+          <!-- Support -->
+          <div class="category-card reveal" style="transition-delay:0.35s">
+            <div class="category-header">
+              <div class="category-emoji">🎫</div>
+              <div class="category-count">10 Workflows</div>
+            </div>
+            <div class="category-name">Customer Support</div>
+            <div class="category-desc">Ticket classification, priority routing, sentiment analysis, SLA monitoring, auto-response generation.</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-label"><span>Status</span><span>100% Active</span></div>
+              <div class="progress-track"><div class="progress-fill" data-width="100"></div></div>
+            </div>
+            <button class="n8n-btn" onclick="window.open('http://localhost:5678','_blank')">⚙️ Open in n8n</button>
+          </div>
+
+          <!-- Proposals -->
+          <div class="category-card reveal" style="transition-delay:0.4s">
+            <div class="category-header">
+              <div class="category-emoji">📝</div>
+              <div class="category-count">5 Workflows</div>
+            </div>
+            <div class="category-name">Proposal Generator</div>
+            <div class="category-desc">RFP parsing, proposal drafting, pricing estimation, competitive analysis, proposal tracking.</div>
+            <div class="progress-bar-wrap">
+              <div class="progress-label"><span>Status</span><span>100% Active</span></div>
+              <div class="progress-track"><div class="progress-fill" data-width="100"></div></div>
+            </div>
+            <button class="n8n-btn" onclick="window.open('http://localhost:5678','_blank')">⚙️ Open in n8n</button>
+          </div>
+
+        </div>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <!-- ─── LIVE METRICS ─── -->
+      <section class="section">
+        <div class="section-header reveal">
+          <div class="section-icon" style="background:rgba(16,185,129,0.12);">📊</div>
+          <div>
+            <div class="section-title">
+              Live Metrics
+              <span class="live-indicator">
+                <span class="live-dot"></span> Live
+              </span>
+            </div>
+            <div class="section-subtitle">Real-time platform telemetry — updates every 3 seconds</div>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+
+          <div class="metric-card reveal">
+            <div class="metric-card-top">
+              <div class="metric-label">Workflows Run Today</div>
+              <div class="metric-icon">⚡</div>
+            </div>
+            <div class="metric-value" id="metric-workflows">—</div>
+            <div id="spark-workflows"></div>
+            <div class="metric-trend">▲ +12% vs yesterday</div>
+          </div>
+
+          <div class="metric-card reveal" style="transition-delay:0.05s">
+            <div class="metric-card-top">
+              <div class="metric-label">Success Rate</div>
+              <div class="metric-icon">✅</div>
+            </div>
+            <div class="metric-value" id="metric-success">—</div>
+            <div id="spark-success"></div>
+            <div class="metric-trend" style="color:var(--green)">▲ Industry leading</div>
+          </div>
+
+          <div class="metric-card reveal" style="transition-delay:0.1s">
+            <div class="metric-card-top">
+              <div class="metric-label">Avg Processing Time</div>
+              <div class="metric-icon">⏱️</div>
+            </div>
+            <div class="metric-value" id="metric-time">—</div>
+            <div id="spark-time"></div>
+            <div class="metric-trend" style="color:var(--purple)">▼ -0.2s vs last week</div>
+          </div>
+
+          <div class="metric-card reveal" style="transition-delay:0.15s">
+            <div class="metric-card-top">
+              <div class="metric-label">Emails Sent</div>
+              <div class="metric-icon">📧</div>
+            </div>
+            <div class="metric-value" id="metric-emails">—</div>
+            <div id="spark-emails"></div>
+            <div class="metric-trend" style="color:var(--orange)">▲ 38% open rate</div>
+          </div>
+
+          <div class="metric-card reveal" style="transition-delay:0.2s">
+            <div class="metric-card-top">
+              <div class="metric-label">AI Calls Made</div>
+              <div class="metric-icon">🤖</div>
+            </div>
+            <div class="metric-value" id="metric-ai">—</div>
+            <div id="spark-ai"></div>
+            <div class="metric-trend" style="color:var(--red)">▲ GPT-4 powered</div>
+          </div>
+
+          <div class="metric-card reveal" style="transition-delay:0.25s">
+            <div class="metric-card-top">
+              <div class="metric-label">Documents Parsed</div>
+              <div class="metric-icon">📄</div>
+            </div>
+            <div class="metric-value" id="metric-docs">—</div>
+            <div id="spark-docs"></div>
+            <div class="metric-trend">▲ +8 formats supported</div>
+          </div>
+
+        </div>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <!-- ─── ACTIVITY + SERVICES ─── -->
+      <section class="section">
+        <div class="two-col">
+
+          <!-- Activity Feed -->
+          <div>
+            <div class="section-header reveal">
+              <div class="section-icon" style="background:rgba(245,158,11,0.12);">📡</div>
+              <div>
+                <div class="section-title">Activity Feed</div>
+                <div class="section-subtitle">Real-time automation events</div>
+              </div>
+            </div>
+            <div class="feed-container reveal">
+              <div class="feed-header">
+                <div class="feed-header-title">
+                  🔴 Live Events
+                  <span class="live-indicator"><span class="live-dot"></span> Auto-updating</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-3)">Every 5s</div>
+              </div>
+              <div id="activity-feed"></div>
+            </div>
+          </div>
+
+          <!-- Services Status -->
+          <div>
+            <div class="section-header reveal">
+              <div class="section-icon" style="background:rgba(16,185,129,0.12);">🛡️</div>
+              <div>
+                <div class="section-title">Services Status</div>
+                <div class="section-subtitle">Infrastructure health — Click to open</div>
+              </div>
+            </div>
+            <div class="services-grid reveal">
+
+              <div class="service-card" id="svc-n8n" data-tip="Open n8n workflow editor">
+                <div class="svc-icon">⚙️</div>
+                <div class="svc-info">
+                  <div class="svc-name">n8n Automation</div>
+                  <div class="svc-port">:5678</div>
+                  <div class="svc-status">
+                    <div class="svc-dot"></div>
+                    <div class="svc-status-label">Checking…</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="service-card" id="svc-api" data-tip="FastAPI — OpenAPI docs">
+                <div class="svc-icon">🔌</div>
+                <div class="svc-info">
+                  <div class="svc-name">FastAPI Backend</div>
+                  <div class="svc-port">:8000</div>
+                  <div class="svc-status">
+                    <div class="svc-dot"></div>
+                    <div class="svc-status-label">Checking…</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="service-card" id="svc-postgres" data-tip="PostgreSQL database">
+                <div class="svc-icon">🐘</div>
+                <div class="svc-info">
+                  <div class="svc-name">PostgreSQL</div>
+                  <div class="svc-port">:5432</div>
+                  <div class="svc-status">
+                    <div class="svc-dot"></div>
+                    <div class="svc-status-label">Checking…</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="service-card" id="svc-redis" data-tip="Redis cache &amp; queues">
+                <div class="svc-icon">🔴</div>
+                <div class="svc-info">
+                  <div class="svc-name">Redis</div>
+                  <div class="svc-port">:6379</div>
+                  <div class="svc-status">
+                    <div class="svc-dot"></div>
+                    <div class="svc-status-label">Checking…</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="service-card" id="svc-qdrant" data-tip="Open Qdrant vector DB dashboard">
+                <div class="svc-icon">🔷</div>
+                <div class="svc-info">
+                  <div class="svc-name">Qdrant</div>
+                  <div class="svc-port">:6333</div>
+                  <div class="svc-status">
+                    <div class="svc-dot"></div>
+                    <div class="svc-status-label">Checking…</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="service-card" id="svc-minio" data-tip="Open MinIO object storage console">
+                <div class="svc-icon">🗄️</div>
+                <div class="svc-info">
+                  <div class="svc-name">MinIO</div>
+                  <div class="svc-port">:9001</div>
+                  <div class="svc-status">
+                    <div class="svc-dot"></div>
+                    <div class="svc-status-label">Checking…</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="service-card" id="svc-grafana" data-tip="Open Grafana monitoring dashboards">
+                <div class="svc-icon">📈</div>
+                <div class="svc-info">
+                  <div class="svc-name">Grafana</div>
+                  <div class="svc-port">:3001</div>
+                  <div class="svc-status">
+                    <div class="svc-dot"></div>
+                    <div class="svc-status-label">Checking…</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="service-card" id="svc-prometheus" data-tip="Open Prometheus metrics">
+                <div class="svc-icon">🔥</div>
+                <div class="svc-info">
+                  <div class="svc-name">Prometheus</div>
+                  <div class="svc-port">:9090</div>
+                  <div class="svc-status">
+                    <div class="svc-dot"></div>
+                    <div class="svc-status-label">Checking…</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="section-divider" style="margin-top:48px;"></div>
+
+      <!-- ─── FOOTER ─── -->
+      <footer class="footer">
+        <div class="footer-left">
+          <strong>AI Automation Platform Dashboard</strong><br/>
+          Built for <strong>Week 5 — AI Platform Engineering Bootcamp</strong><br/>
+          <div class="powered-by" style="margin-top:8px;">
+            <span style="font-size:12px;color:var(--text-3)">Powered by</span>
+            <span class="tech-pill">⚙️ n8n</span>
+            <span class="tech-pill">🔌 FastAPI</span>
+            <span class="tech-pill">🤖 OpenAI GPT-4</span>
+            <span class="tech-pill">🐘 PostgreSQL</span>
+            <span class="tech-pill">🔷 Qdrant</span>
+          </div>
+        </div>
+        <div class="footer-right">
+          <a class="footer-link" href="https://github.com" target="_blank">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            GitHub
+          </a>
+          <a class="footer-link" href="http://localhost:5678" target="_blank">⚙️ n8n</a>
+          <a class="footer-link" href="http://localhost:8000/docs" target="_blank">🔌 API</a>
+        </div>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       MODALS
+  ═══════════════════════════════════════════════ -->
+
+  <!-- Screen Resume -->
+  <div class="modal-overlay" id="modal-resume">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon" style="background:rgba(0,212,255,0.12);">📋</div>
+          <div>
+            <div class="modal-title">Screen Resume</div>
+            <div class="modal-subtitle">POST /hr/screen-resume</div>
+          </div>
+        </div>
+        <button class="modal-close">✕</button>
+      </div>
+      <form id="form-resume">
+        <div class="form-group">
+          <label class="form-label">Resume Text</label>
+          <textarea class="form-textarea" id="resume-text" placeholder="Paste the candidate's resume text here…" style="min-height:130px;" required></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Job Description</label>
+          <textarea class="form-textarea" id="job-desc" placeholder="Paste the job description / requirements…" style="min-height:100px;" required></textarea>
+        </div>
+        <button type="submit" class="modal-submit">📋 Screen Resume</button>
+      </form>
+      <div class="modal-result"></div>
+    </div>
+  </div>
+
+  <!-- Score Lead -->
+  <div class="modal-overlay" id="modal-lead">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon" style="background:rgba(16,185,129,0.12);">🎯</div>
+          <div>
+            <div class="modal-title">Score Lead</div>
+            <div class="modal-subtitle">POST /crm/score-lead</div>
+          </div>
+        </div>
+        <button class="modal-close">✕</button>
+      </div>
+      <form id="form-lead">
+        <div class="form-group">
+          <label class="form-label">Company Name</label>
+          <input class="form-input" id="lead-company" type="text" placeholder="e.g. Acme Corporation" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Industry</label>
+          <select class="form-select" id="lead-industry">
+            <option>Technology</option>
+            <option>Finance</option>
+            <option>Healthcare</option>
+            <option>Retail</option>
+            <option>Manufacturing</option>
+            <option>Education</option>
+            <option>Real Estate</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Annual Budget</label>
+          <select class="form-select" id="lead-budget">
+            <option>Under $10k</option>
+            <option>$10k–$50k</option>
+            <option>$50k–$100k</option>
+            <option>$100k–$500k</option>
+            <option>$500k+</option>
+          </select>
+        </div>
+        <button type="submit" class="modal-submit">🎯 Score This Lead</button>
+      </form>
+      <div class="modal-result"></div>
+    </div>
+  </div>
+
+  <!-- Parse Invoice -->
+  <div class="modal-overlay" id="modal-invoice">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon" style="background:rgba(245,158,11,0.12);">💳</div>
+          <div>
+            <div class="modal-title">Parse Invoice</div>
+            <div class="modal-subtitle">POST /invoice/extract</div>
+          </div>
+        </div>
+        <button class="modal-close">✕</button>
+      </div>
+      <form id="form-invoice">
+        <div class="form-group">
+          <label class="form-label">Invoice Text / Raw Content</label>
+          <textarea class="form-textarea" id="invoice-text" placeholder="Paste the raw invoice text or OCR output here…&#10;&#10;Example:&#10;INVOICE #INV-2026-001&#10;Date: August 27, 2026&#10;Due: September 27, 2026&#10;From: TechSupplies Ltd&#10;To: AI Platform Corp&#10;&#10;Item: Software License × 5 @ $299 = $1,495&#10;Item: Support Hours × 10 @ $150 = $1,500&#10;Subtotal: $2,995&#10;Tax (12%): $359.40&#10;TOTAL: $3,354.40" style="min-height:180px;" required></textarea>
+        </div>
+        <button type="submit" class="modal-submit">💳 Extract Invoice Data</button>
+      </form>
+      <div class="modal-result"></div>
+    </div>
+  </div>
+
+  <!-- Summarize Meeting -->
+  <div class="modal-overlay" id="modal-meeting">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon" style="background:rgba(139,92,246,0.12);">🎙️</div>
+          <div>
+            <div class="modal-title">Summarize Meeting</div>
+            <div class="modal-subtitle">POST /meetings/summarize</div>
+          </div>
+        </div>
+        <button class="modal-close">✕</button>
+      </div>
+      <form id="form-meeting">
+        <div class="form-group">
+          <label class="form-label">Meeting Transcript</label>
+          <textarea class="form-textarea" id="meeting-transcript" placeholder="Paste the meeting transcript here…&#10;&#10;Alice: Let's start with the Q3 review.&#10;Bob: Revenue is up 22% — we hit $1.2M.&#10;Carol: Engineering team delivered the dashboard on time.&#10;Alice: Great. We need to hire 2 ML engineers by end of September.&#10;Dave: I'll post the listings tomorrow.&#10;Alice: Perfect. Action item for Dave — post listings by Sep 1." style="min-height:160px;" required></textarea>
+        </div>
+        <button type="submit" class="modal-submit">🎙️ Summarize Meeting</button>
+      </form>
+      <div class="modal-result"></div>
+    </div>
+  </div>
+
+  <!-- Parse RFP / Proposal -->
+  <div class="modal-overlay" id="modal-proposal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon" style="background:rgba(239,68,68,0.12);">📝</div>
+          <div>
+            <div class="modal-title">Generate Proposal</div>
+            <div class="modal-subtitle">POST /proposals/parse-rfp</div>
+          </div>
+        </div>
+        <button class="modal-close">✕</button>
+      </div>
+      <form id="form-proposal">
+        <div class="form-group">
+          <label class="form-label">RFP Document Text</label>
+          <textarea class="form-textarea" id="rfp-text" placeholder="Paste the RFP (Request for Proposal) document text…&#10;&#10;RFP #2026-Q3-009&#10;Client: Enterprise Solutions Group&#10;Deadline: September 15, 2026&#10;Budget: $80,000 – $120,000&#10;&#10;We are seeking an AI automation platform with:&#10;- 100+ n8n workflow automations&#10;- FastAPI microservices backend&#10;- OpenAI GPT-4 integration&#10;- Glassmorphism UI dashboard&#10;- 24/7 uptime SLA" style="min-height:160px;" required></textarea>
+        </div>
+        <button type="submit" class="modal-submit">📝 Parse RFP &amp; Generate Proposal</button>
+      </form>
+      <div class="modal-result"></div>
+    </div>
+  </div>
+
+  <!-- Support Ticket -->
+  <div class="modal-overlay" id="modal-support">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon" style="background:rgba(6,182,212,0.12);">🎫</div>
+          <div>
+            <div class="modal-title">Classify Support Ticket</div>
+            <div class="modal-subtitle">POST /support/classify</div>
+          </div>
+        </div>
+        <button class="modal-close">✕</button>
+      </div>
+      <form id="form-support">
+        <div class="form-group">
+          <label class="form-label">Ticket Subject</label>
+          <input class="form-input" id="ticket-subject" type="text" placeholder="e.g. Unable to access my account after password reset" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ticket Body</label>
+          <textarea class="form-textarea" id="ticket-body" placeholder="Describe the issue in detail…&#10;&#10;I have been trying to log into my account for 3 days now. After resetting my password, I receive a 'Invalid credentials' error every time. I have cleared my browser cache and tried on multiple devices. This is blocking my entire team from accessing the platform. Please resolve urgently." style="min-height:130px;" required></textarea>
+        </div>
+        <button type="submit" class="modal-submit">🎫 Classify Ticket</button>
+      </form>
+      <div class="modal-result"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    /* ── Particle system ── */
+    (function() {
+      const container = document.getElementById('particles-container');
+      const COLORS = ['#00d4ff','#8b5cf6','#10b981','#f59e0b','#ef4444'];
+      for (let i = 0; i < 40; i++) {
+        const p   = document.createElement('div');
+        p.className = 'particle';
+        const size   = 1.5 + Math.random() * 3;
+        const left   = Math.random() * 100;
+        const dur    = 8 + Math.random() * 20;
+        const delay  = -Math.random() * 25;
+        const color  = COLORS[Math.floor(Math.random() * COLORS.length)];
+        p.style.cssText = `
+          width:${size}px; height:${size}px;
+          left:${left}%;
+          background:${color};
+          animation-duration:${dur}s;
+          animation-delay:${delay}s;
+        `;
+        container.appendChild(p);
+      }
+    })();
+
+    /* ── Progress bars animate in when visible ── */
+    const progObs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const fill = entry.target.querySelector('.progress-fill');
+          if (fill) {
+            setTimeout(() => { fill.style.width = fill.dataset.width + '%'; }, 200);
+          }
+          progObs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.3 });
+    document.querySelectorAll('.category-card').forEach(card => progObs.observe(card));
+  </script>
+</body>
+</html>

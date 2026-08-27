@@ -1,0 +1,200 @@
+{
+  "name": "Leave Request Processing",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Leave Request Form",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "formTitle": "Employee Leave Request",
+        "formDescription": "Submit Employee Leave Request",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Employee ID",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Leave Type",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Annual"
+                  },
+                  {
+                    "option": "Sick"
+                  },
+                  {
+                    "option": "Unpaid"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Start Date",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "End Date",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Reason",
+              "fieldType": "textarea",
+              "requiredField": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Save Leave Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, reason, status) VALUES ('{{ $json[\"Employee ID\"] }}', '{{ $json[\"Leave Type\"] }}', '{{ $json[\"Start Date\"] }}', '{{ $json[\"End Date\"] }}', '{{ $json.Reason }}', 'pending') RETURNING id, (end_date - start_date) AS days"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Auto-Approve Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.days }}",
+              "rightValue": "2",
+              "operator": {
+                "type": "string",
+                "operation": "smallerEqual"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Auto-Approve Short Leave",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leave_requests SET status = 'approved', approved_at = NOW() WHERE id = {{ $json.id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Notify Manager for Approval",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        400
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#hr-leaves",
+        "text": ":calendar: Leave request from <@{{ $json.employee_slack_id }}> \u2014 {{ $json[\"Leave Type\"] }} from {{ $json[\"Start Date\"] }} to {{ $json[\"End Date\"] }} ({{ $json.days }} days). Approval required."
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Leave Request Form": {
+      "main": [
+        [
+          {
+            "node": "Save Leave Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Leave Request": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approve Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Approve Check": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approve Short Leave",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Manager for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-12",
+  "tags": [
+    "hr",
+    "leave"
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "name": "Follow-up Task Creation",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Meeting Summary Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meeting-tasks",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Create Tasks in Project Tool",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://jira-api:8080/rest/api/2/issue",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "summary",
+              "value": "={{ $json.task_description }}"
+            },
+            {
+              "name": "assignee",
+              "value": "={{ $json.assignee_jira_id }}"
+            },
+            {
+              "name": "duedate",
+              "value": "={{ $json.due_date }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.priority }}"
+            },
+            {
+              "name": "labels",
+              "value": "[\"meeting-action\", \"{{ $json.meeting_id }}\"]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Update Action Item with Task ID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE action_items SET jira_ticket_id = '{{ $json.key }}', status = 'in_progress' WHERE meeting_id = '{{ $json.meeting_id }}' AND task_description = '{{ $json.task_description }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Notify Assignee",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "={{ $json.assignee_slack_id }}",
+        "text": ":clipboard: You have a new action item from *{{ $json.meeting_title }}*\n*Task:* {{ $json.task_description }}\n*Due:* {{ $json.due_date }}\n*Priority:* {{ $json.priority }}\n*Jira:* {{ $json.key }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Meeting Summary Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create Tasks in Project Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Tasks in Project Tool": {
+      "main": [
+        [
+          {
+            "node": "Update Action Item with Task ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Action Item with Task ID": {
+      "main": [
+        [
+          {
+            "node": "Notify Assignee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-meet-84",
+  "tags": [
+    "meetings",
+    "tasks",
+    "integration"
+  ]
+}

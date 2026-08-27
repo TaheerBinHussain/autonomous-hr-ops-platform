@@ -1,0 +1,169 @@
+{
+  "name": "Medical Record Processing",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Medical Record Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "doc-medical-record",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Extract Medical Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/parse",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_url",
+              "value": "={{ $json.record_url }}"
+            },
+            {
+              "name": "document_type",
+              "value": "medical_record"
+            },
+            {
+              "name": "extract_fields",
+              "value": "patient_name,dob,diagnoses,medications,allergies,procedures,provider"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Map Medical Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "patient_name",
+              "value": "={{ $json.extracted.patient_name }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "date_of_birth",
+              "value": "={{ $json.extracted.dob }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "diagnoses",
+              "value": "={{ $json.extracted.diagnoses }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-3",
+              "name": "medications",
+              "value": "={{ $json.extracted.medications }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-4",
+              "name": "allergies",
+              "value": "={{ $json.extracted.allergies }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-5",
+              "name": "provider",
+              "value": "={{ $json.extracted.provider }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save to Secure Medical Table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO medical_records_structured (patient_id, patient_name, date_of_birth, diagnoses, medications, allergies, provider, source_url, processed_at) VALUES ({{ $json.patient_id }}, '{{ $json.patient_name }}', '{{ $json.date_of_birth }}', '{{ $json.diagnoses }}'::jsonb, '{{ $json.medications }}'::jsonb, '{{ $json.allergies }}'::jsonb, '{{ $json.provider }}', '{{ $json.record_url }}', NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Medical Record Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Medical Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Medical Data": {
+      "main": [
+        [
+          {
+            "node": "Map Medical Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Medical Fields": {
+      "main": [
+        [
+          {
+            "node": "Save to Secure Medical Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-78",
+  "tags": [
+    "document_parsing",
+    "healthcare"
+  ]
+}

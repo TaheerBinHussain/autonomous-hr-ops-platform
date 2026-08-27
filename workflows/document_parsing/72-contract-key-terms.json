@@ -1,0 +1,169 @@
+{
+  "name": "Contract Key Terms Extraction",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Contract Text Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "doc-contract-terms",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "AI Summarize Contract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/summarize",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.contract_text }}"
+            },
+            {
+              "name": "context",
+              "value": "legal_contract"
+            },
+            {
+              "name": "extract",
+              "value": "parties,dates,obligations,penalties,termination,payment_terms"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Structure Key Terms",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "parties",
+              "value": "={{ $json.extracted.parties }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "start_date",
+              "value": "={{ $json.extracted.start_date }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "end_date",
+              "value": "={{ $json.extracted.end_date }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-3",
+              "name": "payment_terms",
+              "value": "={{ $json.extracted.payment_terms }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-4",
+              "name": "penalties",
+              "value": "={{ $json.extracted.penalties }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-5",
+              "name": "termination_clause",
+              "value": "={{ $json.extracted.termination }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Contract Analysis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO contract_analyses (contract_id, parties, start_date, end_date, payment_terms, penalties, termination_clause, summary, analyzed_at) VALUES ({{ $json.contract_id }}, '{{ $json.parties }}', '{{ $json.start_date }}', '{{ $json.end_date }}', '{{ $json.payment_terms }}', '{{ $json.penalties }}', '{{ $json.termination_clause }}', '{{ $json.summary }}', NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Contract Text Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Summarize Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Summarize Contract": {
+      "main": [
+        [
+          {
+            "node": "Structure Key Terms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure Key Terms": {
+      "main": [
+        [
+          {
+            "node": "Save Contract Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-72",
+  "tags": [
+    "document_parsing",
+    "legal"
+  ]
+}

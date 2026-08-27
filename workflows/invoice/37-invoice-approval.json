@@ -1,0 +1,116 @@
+{
+  "name": "Invoice Approval",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Invoice Approval Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "invoice-approval-request",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Save Pending Approval",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO invoice_approvals (invoice_id, amount, requested_by, status, created_at) VALUES ({{ $json.invoice_id }}, {{ $json.amount }}, {{ $json.requested_by }}, 'pending', NOW()) RETURNING approval_token"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Send Approval Request to Finance",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#finance-approvals",
+        "text": ":pencil: Invoice Approval Required!\nInvoice #{{ $json.invoice_number }} \u2014 *${{ $json.amount }}*\nClient: {{ $json.client_name }}\nRequested by: {{ $json.requested_by_name }}\n\nApprove: https://portal.company.com/approve/{{ $json.approval_token }}\nReject: https://portal.company.com/reject/{{ $json.approval_token }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Await Approval Webhook",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Invoice Approval Webhook": {
+      "main": [
+        [
+          {
+            "node": "Save Pending Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Pending Approval": {
+      "main": [
+        [
+          {
+            "node": "Send Approval Request to Finance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Approval Request to Finance": {
+      "main": [
+        [
+          {
+            "node": "Await Approval Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-37",
+  "tags": [
+    "invoice",
+    "finance"
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "name": "Customer Segmentation",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Monthly Segmentation",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Customer Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, total_revenue, last_purchase_date, purchase_count, avg_order_value FROM customers WHERE status = 'active'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Run Segmentation Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const c = item.json;\n  const daysSince = Math.floor((new Date() - new Date(c.last_purchase_date)) / 86400000);\n  let segment;\n  if (c.total_revenue > 50000 && daysSince < 30) segment = 'Champions';\n  else if (c.total_revenue > 20000) segment = 'Loyal Customers';\n  else if (daysSince < 60) segment = 'Recent Customers';\n  else if (daysSince > 180) segment = 'At Risk';\n  else segment = 'Standard';\n  return { json: { ...c, segment, days_since_purchase: daysSince } };\n});"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Update Customer Segments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE customers SET segment = '{{ $json.segment }}', segmented_at = NOW() WHERE id = {{ $json.id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monthly Segmentation": {
+      "main": [
+        [
+          {
+            "node": "Fetch Customer Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Customer Data": {
+      "main": [
+        [
+          {
+            "node": "Run Segmentation Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Segmentation Logic": {
+      "main": [
+        [
+          {
+            "node": "Update Customer Segments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-31",
+  "tags": [
+    "crm",
+    "analytics"
+  ]
+}

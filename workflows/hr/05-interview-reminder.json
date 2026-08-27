@@ -1,0 +1,132 @@
+{
+  "name": "Interview Reminder",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Daily Morning Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Upcoming Interviews",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.*, c.email, c.name FROM interviews i JOIN candidates c ON i.candidate_id = c.id WHERE i.scheduled_at BETWEEN NOW() AND NOW() + INTERVAL '24 hours' AND i.status = 'confirmed'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Send Reminder Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.email }}",
+        "subject": "Reminder: Interview Tomorrow \u2014 {{ $json.job_title }}",
+        "message": "Hi {{ $json.name }},\n\nThis is a reminder that your interview is scheduled for tomorrow at {{ $json.scheduled_at }}.\nMeeting link: {{ $json.meeting_link }}\n\nGood luck!\nHR Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Notify Interviewer",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#hr-interviews",
+        "text": "Reminder: Interview with {{ $json.name }} tomorrow at {{ $json.scheduled_at }}. Position: {{ $json.job_title }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Morning Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch Upcoming Interviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Upcoming Interviews": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Notify Interviewer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-05",
+  "tags": [
+    "hr",
+    "recruiting"
+  ]
+}

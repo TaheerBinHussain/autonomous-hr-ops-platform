@@ -1,0 +1,140 @@
+{
+  "name": "Background Check",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Background Check Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "background-check",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Initiate Background Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "https://api.checkr.com/v1/candidates",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "first_name",
+              "value": "={{ $json.first_name }}"
+            },
+            {
+              "name": "last_name",
+              "value": "={{ $json.last_name }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $json.email }}"
+            },
+            {
+              "name": "dob",
+              "value": "={{ $json.date_of_birth }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save Background Check Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO background_checks (candidate_id, check_id, status, initiated_at) VALUES ({{ $json.candidate_id }}, '{{ $json.id }}', 'pending', NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Notify HR of Initiation",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#hr-compliance",
+        "text": ":shield: Background check initiated for candidate {{ $json.candidate_name }} (ID: {{ $json.candidate_id }}). Check ID: {{ $json.id }}. Results expected in 3-5 business days."
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Background Check Webhook": {
+      "main": [
+        [
+          {
+            "node": "Initiate Background Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initiate Background Check": {
+      "main": [
+        [
+          {
+            "node": "Save Background Check Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Background Check Record": {
+      "main": [
+        [
+          {
+            "node": "Notify HR of Initiation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-18",
+  "tags": [
+    "hr",
+    "compliance"
+  ]
+}

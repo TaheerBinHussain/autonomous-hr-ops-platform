@@ -1,0 +1,124 @@
+{
+  "name": "Sales Pipeline Report",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly Pipeline Report",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Aggregate Pipeline Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT stage, COUNT(*) as deal_count, SUM(value) as total_value, AVG(value) as avg_value FROM deals WHERE status = 'active' GROUP BY stage ORDER BY CASE stage WHEN 'Prospecting' THEN 1 WHEN 'Qualification' THEN 2 WHEN 'Proposal' THEN 3 WHEN 'Negotiation' THEN 4 WHEN 'Closed Won' THEN 5 ELSE 6 END"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Pipeline Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst total = items.reduce((s, i) => s + parseFloat(i.json.total_value || 0), 0);\nconst lines = items.map(i => `${i.json.stage}: ${i.json.deal_count} deals ($${parseFloat(i.json.total_value).toLocaleString()})`);\nconst report = `Sales Pipeline Report\\n${'='.repeat(40)}\\n${lines.join('\\n')}\\n${'='.repeat(40)}\\nTotal Pipeline: $${total.toLocaleString()}`;\nreturn [{json:{report, total_pipeline: total}}];"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Pipeline Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "executives@company.com",
+        "subject": "Weekly Sales Pipeline Report \u2014 {{ $now.format('MMM DD, YYYY') }}",
+        "message": "={{ $json.report }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Pipeline Report": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Pipeline Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Pipeline Data": {
+      "main": [
+        [
+          {
+            "node": "Format Pipeline Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Pipeline Report": {
+      "main": [
+        [
+          {
+            "node": "Send Pipeline Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-30",
+  "tags": [
+    "crm",
+    "reporting"
+  ]
+}

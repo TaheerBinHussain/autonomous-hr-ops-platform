@@ -1,0 +1,141 @@
+{
+  "name": "Ticket from Email",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Email Support Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support-ticket-email",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Create Support Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO support_tickets (subject, description, customer_email, customer_name, status, priority, source, created_at) VALUES ('{{ $json.subject }}', '{{ $json.body }}', '{{ $json.from_email }}', '{{ $json.from_name }}', 'open', 'normal', 'email', NOW()) RETURNING id, created_at"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Prepare Confirmation Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "ticket_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "customer_email",
+              "value": "={{ $json.from_email }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "ticket_number",
+              "value": "=TKT-{{ $json.id.toString().padStart(6, '0') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Ticket Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.customer_email }}",
+        "subject": "Support Ticket Opened \u2014 {{ $json.ticket_number }}",
+        "message": "Hi {{ $json.from_name }},\n\nWe have received your support request and created ticket {{ $json.ticket_number }}.\n\nOur team will respond within 24 hours.\n\nTrack your ticket: https://support.company.com/tickets/{{ $json.ticket_id }}\n\nSupport Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Email Support Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create Support Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Support Ticket": {
+      "main": [
+        [
+          {
+            "node": "Prepare Confirmation Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Confirmation Data": {
+      "main": [
+        [
+          {
+            "node": "Send Ticket Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-sup-86",
+  "tags": [
+    "support"
+  ]
+}

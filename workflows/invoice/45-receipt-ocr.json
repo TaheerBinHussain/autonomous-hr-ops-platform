@@ -1,0 +1,164 @@
+{
+  "name": "Receipt OCR Processing",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Receipt Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "receipt-ocr",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Parse Receipt with OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/parse",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_url",
+              "value": "={{ $json.receipt_url }}"
+            },
+            {
+              "name": "document_type",
+              "value": "receipt"
+            },
+            {
+              "name": "extract_fields",
+              "value": "amount,vendor,date,tax,category"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Map Extracted Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "amount",
+              "value": "={{ $json.extracted.amount }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "vendor",
+              "value": "={{ $json.extracted.vendor }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "date",
+              "value": "={{ $json.extracted.date }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-3",
+              "name": "tax",
+              "value": "={{ $json.extracted.tax }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-4",
+              "name": "category",
+              "value": "={{ $json.extracted.category }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save OCR Result",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO receipt_ocr_results (employee_id, receipt_url, amount, vendor, expense_date, tax, category, confidence, processed_at) VALUES ({{ $json.employee_id }}, '{{ $json.receipt_url }}', {{ $json.amount }}, '{{ $json.vendor }}', '{{ $json.date }}', {{ $json.tax }}, '{{ $json.category }}', {{ $json.confidence }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receipt Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Receipt with OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Receipt with OCR": {
+      "main": [
+        [
+          {
+            "node": "Map Extracted Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Extracted Data": {
+      "main": [
+        [
+          {
+            "node": "Save OCR Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-45",
+  "tags": [
+    "invoice",
+    "documents",
+    "ai"
+  ]
+}

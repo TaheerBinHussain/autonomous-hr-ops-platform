@@ -1,0 +1,150 @@
+{
+  "name": "Executive Email Summary",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Daily 8AM Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch CEO Important Emails",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://email-api:3000/api/inbox/ceo/important",
+        "method": "GET",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "20"
+            },
+            {
+              "name": "since",
+              "value": "24h"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Generate AI Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/email/executive-summary",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "emails",
+              "value": "={{ $json.emails }}"
+            },
+            {
+              "name": "role",
+              "value": "CEO"
+            },
+            {
+              "name": "focus_areas",
+              "value": "urgent,decisions,opportunities"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Executive Summary",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "ceo@company.com",
+        "subject": "\ud83d\udce7 Your Morning Email Summary \u2014 {{ $now.format('MMMM DD, YYYY') }}",
+        "message": "Good morning,\n\nHere is your AI-generated email summary for today:\n\n{{ $json.executive_summary }}\n\n---\nImportant emails requiring your attention: {{ $json.action_required_count }}\nTotal emails processed: {{ $json.total_emails }}\n\nYour AI Assistant",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 8AM Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch CEO Important Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch CEO Important Emails": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Executive Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-email-60",
+  "tags": [
+    "email",
+    "ai",
+    "executive"
+  ]
+}

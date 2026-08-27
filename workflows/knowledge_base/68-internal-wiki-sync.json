@@ -1,0 +1,140 @@
+{
+  "name": "Internal Wiki Sync",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Daily Wiki Sync",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Updated Wiki Pages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://confluence-api:8080/rest/api/content?expand=body.storage,version&limit=50&start=0",
+        "method": "GET",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "updatedDate",
+              "value": ">={{ $now.minus(1, 'day').toISO() }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Filter & Transform Pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const pages = $input.first().json.results || [];\nreturn pages.map(p => ({\n  json: {\n    wiki_id: p.id,\n    title: p.title,\n    content: p.body?.storage?.value || '',\n    last_modified: p.version?.when,\n    author: p.version?.by?.displayName\n  }\n}));"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Ingest into KB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/parse",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.content }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $json.title }}"
+            },
+            {
+              "name": "source",
+              "value": "confluence"
+            },
+            {
+              "name": "source_id",
+              "value": "={{ $json.wiki_id }}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Wiki Sync": {
+      "main": [
+        [
+          {
+            "node": "Fetch Updated Wiki Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Updated Wiki Pages": {
+      "main": [
+        [
+          {
+            "node": "Filter & Transform Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter & Transform Pages": {
+      "main": [
+        [
+          {
+            "node": "Ingest into KB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-68",
+  "tags": [
+    "knowledge_base",
+    "integration"
+  ]
+}

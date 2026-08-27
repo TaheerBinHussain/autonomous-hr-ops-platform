@@ -1,0 +1,179 @@
+{
+  "name": "Document Classification",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Document Classification Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "doc-classify",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Classify Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/classify",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.document_text }}"
+            },
+            {
+              "name": "possible_types",
+              "value": "invoice,contract,resume,report,email,form,policy,receipt"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Route by Document Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.document_type }}",
+              "rightValue": "invoice",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Trigger Invoice Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        750,
+        200
+      ],
+      "parameters": {
+        "url": "http://n8n:5678/webhook/doc-pdf-invoice",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_url",
+              "value": "={{ $json.document_url }}"
+            },
+            {
+              "name": "document_type",
+              "value": "invoice"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Trigger Generic Parser",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        750,
+        400
+      ],
+      "parameters": {
+        "url": "http://n8n:5678/webhook/doc-form-extract",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_url",
+              "value": "={{ $json.document_url }}"
+            },
+            {
+              "name": "document_type",
+              "value": "={{ $json.document_type }}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Document Classification Webhook": {
+      "main": [
+        [
+          {
+            "node": "Classify Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Document": {
+      "main": [
+        [
+          {
+            "node": "Route by Document Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Document Type": {
+      "main": [
+        [
+          {
+            "node": "Trigger Invoice Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Trigger Generic Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-76",
+  "tags": [
+    "document_parsing",
+    "ai"
+  ]
+}

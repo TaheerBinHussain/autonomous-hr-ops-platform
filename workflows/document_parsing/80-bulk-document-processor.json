@@ -1,0 +1,128 @@
+{
+  "name": "Bulk Document Processor",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Hourly Batch Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "List Pending Documents from MinIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://minio:9000/documents/pending?limit=20",
+        "method": "GET",
+        "options": {}
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Prepare Document Batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const docs = $input.first().json.documents || [];\nreturn docs.map(doc => ({\n  json: {\n    document_url: `http://minio:9000/documents/${doc.name}`,\n    document_name: doc.name,\n    document_type: doc.metadata?.type || 'unknown',\n    size: doc.size\n  }\n}));"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Run Through Parse Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/parse",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_url",
+              "value": "={{ $json.document_url }}"
+            },
+            {
+              "name": "document_type",
+              "value": "={{ $json.document_type }}"
+            },
+            {
+              "name": "batch_mode",
+              "value": "true"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Hourly Batch Schedule": {
+      "main": [
+        [
+          {
+            "node": "List Pending Documents from MinIO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Pending Documents from MinIO": {
+      "main": [
+        [
+          {
+            "node": "Prepare Document Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Document Batch": {
+      "main": [
+        [
+          {
+            "node": "Run Through Parse Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-80",
+  "tags": [
+    "document_parsing",
+    "automation"
+  ]
+}

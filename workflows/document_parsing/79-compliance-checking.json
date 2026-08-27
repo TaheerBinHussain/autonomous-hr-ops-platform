@@ -1,0 +1,175 @@
+{
+  "name": "Compliance Checking",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Compliance Check Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "doc-compliance-check",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Compliance Rules",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT rule_id, rule_name, pattern, severity, category FROM compliance_rules WHERE active = true AND (document_type = '{{ $json.document_type }}' OR document_type = 'all')"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Run Compliance Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const rules = $input.all().map(i => i.json);\nconst content = $input.first().json.document_text;\nconst violations = [];\nfor (const rule of rules) {\n  const regex = new RegExp(rule.pattern, 'gi');\n  if (!regex.test(content)) {\n    violations.push({\n      rule_id: rule.rule_id,\n      rule_name: rule.rule_name,\n      severity: rule.severity,\n      category: rule.category\n    });\n  }\n}\nconst is_compliant = violations.filter(v => v.severity === 'critical').length === 0;\nreturn [{json: { violations, is_compliant, violation_count: violations.length }}];"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Has Violations?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_compliant }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Alert Compliance Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        200
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#compliance-alerts",
+        "text": ":warning: *Compliance Issue Detected!*\nDocument: {{ $json.document_id }}\nViolations: {{ $json.violation_count }}\nCritical Issues: {{ $json.violations.filter(v => v.severity === 'critical').length }}\n\nImmediate review required."
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "id": "n6",
+      "name": "Document Compliant",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        400
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Compliance Check Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Compliance Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Compliance Rules": {
+      "main": [
+        [
+          {
+            "node": "Run Compliance Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Compliance Check": {
+      "main": [
+        [
+          {
+            "node": "Has Violations?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Violations?": {
+      "main": [
+        [
+          {
+            "node": "Alert Compliance Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Document Compliant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-79",
+  "tags": [
+    "document_parsing",
+    "compliance",
+    "ai"
+  ]
+}

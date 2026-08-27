@@ -1,0 +1,189 @@
+{
+  "name": "Expense Report",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Expense Report Form",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "formTitle": "Employee Expense Report",
+        "formDescription": "Submit Employee Expense Report",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Employee ID",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Expense Date",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Amount",
+              "fieldType": "number",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Category",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Travel"
+                  },
+                  {
+                    "option": "Meals"
+                  },
+                  {
+                    "option": "Software"
+                  },
+                  {
+                    "option": "Office"
+                  },
+                  {
+                    "option": "Other"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Description",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Receipt URL",
+              "fieldType": "text",
+              "requiredField": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "AI Categorize Expense",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/invoice/categorize-expense",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "description",
+              "value": "={{ $json.Description }}"
+            },
+            {
+              "name": "amount",
+              "value": "={{ $json.Amount }}"
+            },
+            {
+              "name": "category",
+              "value": "={{ $json.Category }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save Expense",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO expenses (employee_id, amount, category, ai_category, description, receipt_url, expense_date, status) VALUES ('{{ $json[\"Employee ID\"] }}', {{ $json.Amount }}, '{{ $json.Category }}', '{{ $json.ai_category }}', '{{ $json.Description }}', '{{ $json[\"Receipt URL\"] }}', '{{ $json[\"Expense Date\"] }}', 'pending_approval')"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Notify Finance for Approval",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#finance-expenses",
+        "text": ":receipt: New expense report submitted!\nEmployee: {{ $json.employee_name }}\nAmount: *${{ $json.Amount }}*\nCategory: {{ $json.ai_category }}\nDescription: {{ $json.Description }}\nApprove: https://portal.company.com/expenses/{{ $json.expense_id }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Expense Report Form": {
+      "main": [
+        [
+          {
+            "node": "AI Categorize Expense",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Categorize Expense": {
+      "main": [
+        [
+          {
+            "node": "Save Expense",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Expense": {
+      "main": [
+        [
+          {
+            "node": "Notify Finance for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-44",
+  "tags": [
+    "invoice",
+    "finance",
+    "hr"
+  ]
+}

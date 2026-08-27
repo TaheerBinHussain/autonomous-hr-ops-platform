@@ -1,0 +1,122 @@
+{
+  "name": "Payroll Collection",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Monthly Payroll Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Collect Hours & Attendance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT e.id, e.name, e.hourly_rate, e.salary_type, SUM(a.hours_worked) as total_hours, COUNT(a.id) as days_worked FROM employees e JOIN attendance a ON e.id = a.employee_id WHERE a.work_date >= date_trunc('month', NOW() - INTERVAL '1 month') AND a.work_date < date_trunc('month', NOW()) GROUP BY e.id, e.name, e.hourly_rate, e.salary_type"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Calculate Payroll",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const emp = item.json;\n  const gross = emp.salary_type === 'hourly'\n    ? emp.total_hours * emp.hourly_rate\n    : emp.monthly_salary;\n  const tax = gross * 0.25;\n  const net = gross - tax;\n  return { json: { ...emp, gross_pay: gross.toFixed(2), tax: tax.toFixed(2), net_pay: net.toFixed(2) } };\n});"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Payroll Records",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO payroll (employee_id, period, gross_pay, tax, net_pay, generated_at) VALUES ({{ $json.id }}, date_trunc('month', NOW() - INTERVAL '1 month'), {{ $json.gross_pay }}, {{ $json.tax }}, {{ $json.net_pay }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monthly Payroll Schedule": {
+      "main": [
+        [
+          {
+            "node": "Collect Hours & Attendance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Hours & Attendance": {
+      "main": [
+        [
+          {
+            "node": "Calculate Payroll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Payroll": {
+      "main": [
+        [
+          {
+            "node": "Save Payroll Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-15",
+  "tags": [
+    "hr",
+    "payroll"
+  ]
+}

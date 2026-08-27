@@ -1,0 +1,134 @@
+{
+  "name": "Document Ingestion",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Document Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kb-document-ingest",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Parse Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/parse",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_url",
+              "value": "={{ $json.document_url }}"
+            },
+            {
+              "name": "document_type",
+              "value": "={{ $json.document_type }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Store in Qdrant Vector DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://qdrant:6333/collections/knowledge_base/points",
+        "method": "PUT",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "points",
+              "value": "[{\"id\": \"{{ $json.doc_id }}\", \"vector\": {{ $json.embedding }}, \"payload\": {\"text\": \"{{ $json.content }}\", \"source\": \"{{ $json.document_url }}\", \"type\": \"{{ $json.document_type }}\"}}]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Document Metadata",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO kb_documents (title, source_url, document_type, qdrant_id, indexed_at, created_by) VALUES ('{{ $json.title }}', '{{ $json.document_url }}', '{{ $json.document_type }}', '{{ $json.doc_id }}', NOW(), {{ $json.user_id }})"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Document Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Document": {
+      "main": [
+        [
+          {
+            "node": "Store in Qdrant Vector DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Qdrant Vector DB": {
+      "main": [
+        [
+          {
+            "node": "Save Document Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-61",
+  "tags": [
+    "knowledge_base",
+    "documents"
+  ]
+}

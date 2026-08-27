@@ -1,0 +1,130 @@
+{
+  "name": "PDF Invoice Extraction",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "PDF Invoice Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "doc-pdf-invoice",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Download PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "={{ $json.pdf_url }}",
+        "method": "GET",
+        "options": {}
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Upload & Extract Invoice Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/upload",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{ $json.binary_data }}"
+            },
+            {
+              "name": "document_type",
+              "value": "invoice"
+            },
+            {
+              "name": "extract_fields",
+              "value": "invoice_number,vendor,amount,due_date,line_items,tax"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Extracted Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO extracted_invoices (source_url, vendor, invoice_number, amount, tax, due_date, line_items, confidence, extracted_at) VALUES ('{{ $json.pdf_url }}', '{{ $json.extracted.vendor }}', '{{ $json.extracted.invoice_number }}', {{ $json.extracted.amount }}, {{ $json.extracted.tax }}, '{{ $json.extracted.due_date }}', '{{ $json.extracted.line_items }}'::jsonb, {{ $json.confidence }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "PDF Invoice Webhook": {
+      "main": [
+        [
+          {
+            "node": "Download PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF": {
+      "main": [
+        [
+          {
+            "node": "Upload & Extract Invoice Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload & Extract Invoice Data": {
+      "main": [
+        [
+          {
+            "node": "Save Extracted Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-71",
+  "tags": [
+    "document_parsing",
+    "invoice"
+  ]
+}

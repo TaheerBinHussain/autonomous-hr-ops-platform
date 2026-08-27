@@ -1,0 +1,143 @@
+{
+  "name": "Subscription Renewal Billing",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Monthly Subscription Billing",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Find Renewing Subscriptions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.*, c.name as customer_name, c.email, c.stripe_customer_id FROM subscriptions s JOIN customers c ON s.customer_id = c.id WHERE s.status = 'active' AND s.renewal_date = CURRENT_DATE"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Charge Subscription",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "https://api.stripe.com/v1/invoices",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "customer",
+              "value": "={{ $json.stripe_customer_id }}"
+            },
+            {
+              "name": "auto_advance",
+              "value": "true"
+            },
+            {
+              "name": "collection_method",
+              "value": "charge_automatically"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Updated Invoice",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.email }}",
+        "subject": "Subscription Renewed \u2014 Invoice #{{ $json.invoice_number }}",
+        "message": "Dear {{ $json.customer_name }},\n\nYour {{ $json.plan_name }} subscription has been renewed.\n\nAmount: ${{ $json.amount }}\nNext Billing Date: {{ $json.next_renewal_date }}\nInvoice: {{ $json.invoice_url }}\n\nThank you for your continued subscription!\nBilling Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monthly Subscription Billing": {
+      "main": [
+        [
+          {
+            "node": "Find Renewing Subscriptions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Renewing Subscriptions": {
+      "main": [
+        [
+          {
+            "node": "Charge Subscription",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Charge Subscription": {
+      "main": [
+        [
+          {
+            "node": "Send Updated Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-inv-50",
+  "tags": [
+    "invoice",
+    "finance",
+    "subscriptions"
+  ]
+}

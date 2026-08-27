@@ -1,0 +1,126 @@
+{
+  "name": "Newsletter Send",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Newsletter Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Newsletter Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://cms-api:3000/api/newsletter/latest",
+        "method": "GET",
+        "options": {}
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Get Subscriber List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT email, first_name, preferences FROM newsletter_subscribers WHERE status = 'active' AND unsubscribed_at IS NULL"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Newsletter Batch",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.newsletter_subject }}",
+        "message": "Hi {{ $json.first_name }},\n\n{{ $json.newsletter_html }}\n\n---\nUnsubscribe: https://newsletter.company.com/unsubscribe?token={{ $json.unsubscribe_token }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Newsletter Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch Newsletter Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Newsletter Content": {
+      "main": [
+        [
+          {
+            "node": "Get Subscriber List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Subscriber List": {
+      "main": [
+        [
+          {
+            "node": "Send Newsletter Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-email-53",
+  "tags": [
+    "email",
+    "marketing"
+  ]
+}

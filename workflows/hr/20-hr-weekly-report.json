@@ -1,0 +1,124 @@
+{
+  "name": "HR Weekly Report",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly Friday Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Aggregate HR Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT COUNT(*) FROM candidates WHERE created_at >= NOW() - INTERVAL '7 days') as new_applications, (SELECT COUNT(*) FROM interviews WHERE scheduled_at >= NOW() - INTERVAL '7 days') as interviews_scheduled, (SELECT COUNT(*) FROM candidates WHERE status = 'hired' AND updated_at >= NOW() - INTERVAL '7 days') as hires, (SELECT COUNT(*) FROM leave_requests WHERE created_at >= NOW() - INTERVAL '7 days') as leave_requests, (SELECT AVG(score) FROM resume_screenings WHERE created_at >= NOW() - INTERVAL '7 days') as avg_ai_score"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Weekly Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const m = $input.first().json;\nconst report = `HR Weekly Report \u2014 ${new Date().toLocaleDateString()}\\n\\n` +\n  `\ud83d\udccb New Applications: ${m.new_applications}\\n` +\n  `\ud83d\uddd3\ufe0f Interviews Scheduled: ${m.interviews_scheduled}\\n` +\n  `\ud83c\udf89 New Hires: ${m.hires}\\n` +\n  `\ud83c\udfd6\ufe0f Leave Requests: ${m.leave_requests}\\n` +\n  `\ud83e\udd16 Avg AI Score: ${parseFloat(m.avg_ai_score).toFixed(1)}/100`;\nreturn [{ json: { report, ...m } }];"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send HR Weekly Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "hr-director@company.com",
+        "subject": "HR Weekly Report \u2014 {{ $now.format('MMM DD, YYYY') }}",
+        "message": "={{ $json.report }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Friday Schedule": {
+      "main": [
+        [
+          {
+            "node": "Aggregate HR Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate HR Metrics": {
+      "main": [
+        [
+          {
+            "node": "Format Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weekly Report": {
+      "main": [
+        [
+          {
+            "node": "Send HR Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-20",
+  "tags": [
+    "hr",
+    "reporting"
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "name": "Ticket Resolution Summary",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Ticket Close Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support-resolution-summary",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Generate Resolution Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/support/generate-response",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ticket_id",
+              "value": "={{ $json.ticket_id }}"
+            },
+            {
+              "name": "mode",
+              "value": "resolution_summary"
+            },
+            {
+              "name": "conversation_history",
+              "value": "={{ $json.conversation_history }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save Resolution Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ticket_resolution_summaries (ticket_id, summary, resolution_type, root_cause, time_to_resolve_hours, created_at) VALUES ({{ $json.ticket_id }}, '{{ $json.summary }}', '{{ $json.resolution_type }}', '{{ $json.root_cause }}', {{ $json.time_to_resolve_hours }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Update Ticket Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE support_tickets SET status = 'closed', closed_at = NOW(), resolution_summary = '{{ $json.summary }}' WHERE id = {{ $json.ticket_id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Ticket Close Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate Resolution Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Resolution Summary": {
+      "main": [
+        [
+          {
+            "node": "Save Resolution Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Resolution Summary": {
+      "main": [
+        [
+          {
+            "node": "Update Ticket Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-sup-93",
+  "tags": [
+    "support",
+    "ai"
+  ]
+}

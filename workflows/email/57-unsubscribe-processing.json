@@ -1,0 +1,126 @@
+{
+  "name": "Unsubscribe Processing",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Unsubscribe Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email-unsubscribe",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Remove from Mailing List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE newsletter_subscribers SET status = 'unsubscribed', unsubscribed_at = NOW(), unsubscribe_reason = '{{ $json.reason }}' WHERE email = '{{ $json.email }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Log Unsubscribe Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO unsubscribe_log (email, reason, source, unsubscribed_at) VALUES ('{{ $json.email }}', '{{ $json.reason }}', '{{ $json.source }}', NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Unsubscribe Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.email }}",
+        "subject": "You've been unsubscribed",
+        "message": "Hi,\n\nYou have been successfully unsubscribed from our mailing list.\n\nIf this was a mistake, you can re-subscribe at: https://newsletter.company.com/subscribe\n\nWe're sorry to see you go!\n\nMarketing Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Unsubscribe Webhook": {
+      "main": [
+        [
+          {
+            "node": "Remove from Mailing List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove from Mailing List": {
+      "main": [
+        [
+          {
+            "node": "Log Unsubscribe Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Unsubscribe Event": {
+      "main": [
+        [
+          {
+            "node": "Send Unsubscribe Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-email-57",
+  "tags": [
+    "email",
+    "marketing"
+  ]
+}

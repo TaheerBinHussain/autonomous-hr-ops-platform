@@ -1,0 +1,139 @@
+{
+  "name": "Resume Parser",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Resume File Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "doc-resume-parse",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Upload Resume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/upload",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file_url",
+              "value": "={{ $json.resume_url }}"
+            },
+            {
+              "name": "document_type",
+              "value": "resume"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "AI Screen Resume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/hr/screen-resume",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "parsed_resume",
+              "value": "={{ $json.parsed_content }}"
+            },
+            {
+              "name": "job_id",
+              "value": "={{ $json.job_id }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Save Structured Resume",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO parsed_resumes (candidate_id, job_id, full_name, email, phone, years_experience, skills, education, work_history, ai_score, parsed_at) VALUES ({{ $json.candidate_id }}, {{ $json.job_id }}, '{{ $json.full_name }}', '{{ $json.email }}', '{{ $json.phone }}', {{ $json.years_experience }}, '{{ $json.skills }}'::jsonb, '{{ $json.education }}'::jsonb, '{{ $json.work_history }}'::jsonb, {{ $json.ai_score }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Resume File Webhook": {
+      "main": [
+        [
+          {
+            "node": "Upload Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Resume": {
+      "main": [
+        [
+          {
+            "node": "AI Screen Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Screen Resume": {
+      "main": [
+        [
+          {
+            "node": "Save Structured Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-doc-73",
+  "tags": [
+    "document_parsing",
+    "hr",
+    "ai"
+  ]
+}

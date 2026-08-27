@@ -1,0 +1,154 @@
+{
+  "name": "IT Access Provisioning",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "IT Access Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "it-access-provisioning",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Create IT Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://jira-api:8080/rest/api/2/issue",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "summary",
+              "value": "IT Access Setup for {{ $json.employee_name }}"
+            },
+            {
+              "name": "description",
+              "value": "New employee {{ $json.employee_name }} requires: {{ $json.required_access }}"
+            },
+            {
+              "name": "priority",
+              "value": "High"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Prepare Confirmation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "ticket_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "employee_email",
+              "value": "={{ $json.employee_email }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "access_list",
+              "value": "={{ $json.required_access }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send IT Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.employee_email }}",
+        "subject": "IT Access Setup Initiated \u2014 Ticket #{{ $json.ticket_id }}",
+        "message": "Hi {{ $json.employee_name }},\n\nYour IT access setup has been initiated (Ticket #{{ $json.ticket_id }}).\nAccess being configured: {{ $json.access_list }}\n\nExpected completion: 1 business day.\n\nIT Support Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "IT Access Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create IT Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create IT Ticket": {
+      "main": [
+        [
+          {
+            "node": "Prepare Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Send IT Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-10",
+  "tags": [
+    "hr",
+    "it",
+    "onboarding"
+  ]
+}

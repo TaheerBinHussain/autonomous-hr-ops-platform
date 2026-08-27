@@ -1,0 +1,123 @@
+{
+  "name": "Customer Health Score",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly Health Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Customer Usage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.name, c.email, c.plan_id, AVG(u.daily_active_users) as avg_dau, COUNT(t.id) as support_tickets, MAX(u.date) as last_active FROM customers c LEFT JOIN usage_metrics u ON c.id = u.customer_id AND u.date >= NOW() - INTERVAL '30 days' LEFT JOIN support_tickets t ON c.id = t.customer_id AND t.created_at >= NOW() - INTERVAL '30 days' WHERE c.status = 'active' GROUP BY c.id, c.name, c.email, c.plan_id"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Calculate Health Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const c = item.json;\n  let score = 100;\n  // Penalize for low usage\n  if (c.avg_dau < 5) score -= 30;\n  else if (c.avg_dau < 10) score -= 15;\n  // Penalize for high support tickets\n  if (c.support_tickets > 10) score -= 20;\n  else if (c.support_tickets > 5) score -= 10;\n  // Penalize for inactivity\n  const daysSince = Math.floor((new Date() - new Date(c.last_active)) / 86400000);\n  if (daysSince > 14) score -= 25;\n  const status = score >= 80 ? 'Healthy' : score >= 60 ? 'At Risk' : 'Critical';\n  return { json: { ...c, health_score: Math.max(0, score), health_status: status } };\n});"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Update Health Scores",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE customers SET health_score = {{ $json.health_score }}, health_status = '{{ $json.health_status }}', health_updated_at = NOW() WHERE id = {{ $json.id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Health Check": {
+      "main": [
+        [
+          {
+            "node": "Fetch Customer Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Customer Usage": {
+      "main": [
+        [
+          {
+            "node": "Calculate Health Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Health Score": {
+      "main": [
+        [
+          {
+            "node": "Update Health Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-35",
+  "tags": [
+    "crm",
+    "analytics",
+    "retention"
+  ]
+}

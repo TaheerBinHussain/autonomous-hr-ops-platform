@@ -1,0 +1,136 @@
+{
+  "name": "Employee Onboarding Checklist",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Hire Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "employee-onboarding",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Generate Onboarding Checklist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/hr/onboarding-checklist",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "employee_id",
+              "value": "={{ $json.employee_id }}"
+            },
+            {
+              "name": "role",
+              "value": "={{ $json.role }}"
+            },
+            {
+              "name": "department",
+              "value": "={{ $json.department }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Create Onboarding Tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO onboarding_tasks (employee_id, task_name, due_date, status) SELECT {{ $json.employee_id }}, task, NOW() + INTERVAL '{{ $json.days }} days', 'pending' FROM json_array_elements_text('{{ $json.tasks }}'::json) AS task"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Notify HR & Manager",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#hr-onboarding",
+        "text": ":wave: New hire onboarding started for *{{ $json.employee_name }}* ({{ $json.role }}).\n{{ $json.task_count }} tasks created. Start date: {{ $json.start_date }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Hire Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate Onboarding Checklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Onboarding Checklist": {
+      "main": [
+        [
+          {
+            "node": "Create Onboarding Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Onboarding Tasks": {
+      "main": [
+        [
+          {
+            "node": "Notify HR & Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-08",
+  "tags": [
+    "hr",
+    "onboarding"
+  ]
+}

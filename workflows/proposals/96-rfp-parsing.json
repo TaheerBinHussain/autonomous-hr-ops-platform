@@ -1,0 +1,133 @@
+{
+  "name": "RFP Parsing",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "RFP Document Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal-rfp-parse",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Parse RFP Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/proposals/parse-rfp",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document_url",
+              "value": "={{ $json.rfp_url }}"
+            },
+            {
+              "name": "extract",
+              "value": "requirements,budget,timeline,evaluation_criteria,scope,deliverables,submission_deadline"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save RFP Analysis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO rfp_analyses (rfp_id, client_name, requirements, budget_range, timeline, evaluation_criteria, scope, deliverables, submission_deadline, complexity_score, analyzed_at) VALUES ('{{ $json.rfp_id }}', '{{ $json.client_name }}', '{{ $json.requirements }}'::jsonb, '{{ $json.budget_range }}', '{{ $json.timeline }}', '{{ $json.evaluation_criteria }}'::jsonb, '{{ $json.scope }}', '{{ $json.deliverables }}'::jsonb, '{{ $json.submission_deadline }}', {{ $json.complexity_score }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Notify Proposals Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#proposals-team",
+        "text": ":page_facing_up: New RFP Parsed!\nClient: *{{ $json.client_name }}*\nBudget: {{ $json.budget_range }}\nDeadline: {{ $json.submission_deadline }}\nComplexity: {{ $json.complexity_score }}/10\n\nView analysis: https://portal.company.com/rfp/{{ $json.rfp_id }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "RFP Document Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse RFP Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse RFP Document": {
+      "main": [
+        [
+          {
+            "node": "Save RFP Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save RFP Analysis": {
+      "main": [
+        [
+          {
+            "node": "Notify Proposals Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-prop-96",
+  "tags": [
+    "proposals",
+    "ai",
+    "documents"
+  ]
+}

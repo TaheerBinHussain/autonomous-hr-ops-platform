@@ -1,0 +1,143 @@
+{
+  "name": "Employee Welcome",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "New Employee Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "employee-welcome",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Prepare Welcome Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "employee_name",
+              "value": "={{ $json.first_name }} {{ $json.last_name }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "start_date",
+              "value": "={{ $json.start_date }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "team_channel",
+              "value": "={{ $json.team_slack_channel }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.personal_email }}",
+        "subject": "Welcome to {{ $json.company_name }}, {{ $json.first_name }}!",
+        "message": "Hi {{ $json.first_name }},\n\nWelcome aboard! We're thrilled to have you join the {{ $json.department }} team.\n\nYour start date is {{ $json.start_date }}. You'll receive your IT setup instructions separately.\n\nLooking forward to working with you!\n\nThe Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Post Welcome to General",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#general",
+        "text": ":tada: Please welcome our newest team member, *{{ $json.employee_name }}*, joining as *{{ $json.role }}* in {{ $json.department }}! Starting {{ $json.start_date }}."
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "New Employee Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Welcome Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Welcome Data": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Post Welcome to General",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-09",
+  "tags": [
+    "hr",
+    "onboarding"
+  ]
+}

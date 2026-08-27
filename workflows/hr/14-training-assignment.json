@@ -1,0 +1,137 @@
+{
+  "name": "Training Assignment",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Training Assignment Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "training-assignment",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Get Role Training Plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/hr/training-plan",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "role",
+              "value": "={{ $json.role }}"
+            },
+            {
+              "name": "department",
+              "value": "={{ $json.department }}"
+            },
+            {
+              "name": "experience_level",
+              "value": "={{ $json.experience_level }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save Training Assignments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO training_assignments (employee_id, course_id, course_name, due_date, status) SELECT {{ $json.employee_id }}, course->>'id', course->>'name', NOW() + INTERVAL '30 days', 'assigned' FROM json_array_elements('{{ $json.courses }}'::json) AS course"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Training Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.employee_email }}",
+        "subject": "Your Training Plan is Ready",
+        "message": "Hi {{ $json.employee_name }},\n\nBased on your role as {{ $json.role }}, we've assigned the following training courses:\n\n{{ $json.course_list }}\n\nPlease complete these within 30 days. Access courses at: https://lms.company.com\n\nHR Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Training Assignment Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Role Training Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Role Training Plan": {
+      "main": [
+        [
+          {
+            "node": "Save Training Assignments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Training Assignments": {
+      "main": [
+        [
+          {
+            "node": "Send Training Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-hr-14",
+  "tags": [
+    "hr",
+    "training"
+  ]
+}

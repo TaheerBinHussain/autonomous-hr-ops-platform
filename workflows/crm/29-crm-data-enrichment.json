@@ -1,0 +1,155 @@
+{
+  "name": "CRM Data Enrichment",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Enrichment Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-enrich-lead",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Enrich via Clearbit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "https://company.clearbit.com/v2/combined/find",
+        "method": "GET",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $json.email }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Map Enriched Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "company_name",
+              "value": "={{ $json.company.name }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "company_size",
+              "value": "={{ $json.company.metrics.employees }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "industry",
+              "value": "={{ $json.company.category.industry }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-3",
+              "name": "linkedin_url",
+              "value": "={{ $json.person.linkedin.handle }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-4",
+              "name": "job_title",
+              "value": "={{ $json.person.employment.title }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Update Lead with Enriched Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET company_name = '{{ $json.company_name }}', company_size = {{ $json.company_size }}, industry = '{{ $json.industry }}', linkedin_url = '{{ $json.linkedin_url }}', job_title = '{{ $json.job_title }}', enriched_at = NOW() WHERE email = '{{ $json.email }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Enrichment Webhook": {
+      "main": [
+        [
+          {
+            "node": "Enrich via Clearbit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich via Clearbit": {
+      "main": [
+        [
+          {
+            "node": "Map Enriched Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Enriched Data": {
+      "main": [
+        [
+          {
+            "node": "Update Lead with Enriched Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-29",
+  "tags": [
+    "crm",
+    "data"
+  ]
+}

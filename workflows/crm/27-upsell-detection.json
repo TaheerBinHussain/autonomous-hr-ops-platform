@@ -1,0 +1,141 @@
+{
+  "name": "Upsell Detection",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly Upsell Scan",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Get Customer Usage Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.*, s.plan_name, s.plan_limit, c.usage_this_month FROM customers c JOIN subscriptions s ON c.subscription_id = s.id WHERE c.status = 'active' AND c.usage_this_month >= s.plan_limit * 0.8"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Identify Upsell Opportunity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/crm/upsell-opportunity",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "customer_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "current_plan",
+              "value": "={{ $json.plan_name }}"
+            },
+            {
+              "name": "usage_ratio",
+              "value": "={{ $json.usage_this_month / $json.plan_limit }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Create Upsell Task",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO crm_tasks (customer_id, task_type, description, priority, due_date, created_at) VALUES ({{ $json.customer_id }}, 'upsell', '{{ $json.recommendation }}', 'high', NOW() + INTERVAL '3 days', NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Upsell Scan": {
+      "main": [
+        [
+          {
+            "node": "Get Customer Usage Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Customer Usage Data": {
+      "main": [
+        [
+          {
+            "node": "Identify Upsell Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify Upsell Opportunity": {
+      "main": [
+        [
+          {
+            "node": "Create Upsell Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-crm-27",
+  "tags": [
+    "crm",
+    "sales",
+    "ai"
+  ]
+}

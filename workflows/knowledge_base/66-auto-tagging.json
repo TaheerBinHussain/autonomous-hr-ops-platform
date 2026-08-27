@@ -1,0 +1,142 @@
+{
+  "name": "Auto Tagging",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "New Document Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kb-auto-tag",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "AI Classify & Tag Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/documents/classify",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $json.content }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $json.title }}"
+            },
+            {
+              "name": "max_tags",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Save Tags to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE kb_documents SET tags = '{{ $json.tags }}'::jsonb, category = '{{ $json.primary_category }}', auto_tagged_at = NOW() WHERE id = {{ $json.document_id }}"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Update Qdrant Payload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "url": "http://qdrant:6333/collections/knowledge_base/points/payload",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "points",
+              "value": "[\"{{ $json.qdrant_id }}\"]"
+            },
+            {
+              "name": "payload",
+              "value": "{\"tags\": {{ $json.tags }}, \"category\": \"{{ $json.primary_category }}\"}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "New Document Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Classify & Tag Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Classify & Tag Document": {
+      "main": [
+        [
+          {
+            "node": "Save Tags to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Tags to DB": {
+      "main": [
+        [
+          {
+            "node": "Update Qdrant Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-66",
+  "tags": [
+    "knowledge_base",
+    "ai"
+  ]
+}

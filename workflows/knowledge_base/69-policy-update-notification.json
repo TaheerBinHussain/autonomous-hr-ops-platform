@@ -1,0 +1,137 @@
+{
+  "name": "Policy Update Notification",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Policy Update Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kb-policy-update",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Get Affected Employees",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT e.email, e.name FROM employees e JOIN policy_applicability pa ON pa.department_id = e.department_id OR pa.role_id = e.role_id WHERE pa.policy_id = {{ $json.policy_id }} AND e.status = 'active'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Prepare Policy Notification",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "subject",
+              "value": "=Policy Update: {{ $json.policy_name }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "body",
+              "value": "=Hi {{ $json.name }},\n\nAn important policy has been updated that affects your role:\n\nPolicy: {{ $json.policy_name }}\nEffective Date: {{ $json.effective_date }}\nKey Changes: {{ $json.summary }}\n\nPlease review the full policy: https://kb.company.com/policies/{{ $json.policy_id }}\n\nAcknowledge receipt: https://kb.company.com/policies/{{ $json.policy_id }}/acknowledge\n\nHR & Compliance Team",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Policy Update Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Policy Update Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Affected Employees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Affected Employees": {
+      "main": [
+        [
+          {
+            "node": "Prepare Policy Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Policy Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Policy Update Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-69",
+  "tags": [
+    "knowledge_base",
+    "hr",
+    "compliance"
+  ]
+}

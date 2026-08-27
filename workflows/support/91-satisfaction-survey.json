@@ -1,0 +1,142 @@
+{
+  "name": "Satisfaction Survey",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Ticket Resolved Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support-csat-survey",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Prepare Survey Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "survey_token",
+              "value": "={{ $json.ticket_id }}-{{ Date.now() }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "survey_url",
+              "value": "=https://survey.company.com/csat/{{ $json.ticket_id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "delay_send",
+              "value": "=3600",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Schedule Survey Send",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO csat_surveys (ticket_id, customer_email, survey_token, scheduled_at, status) VALUES ({{ $json.ticket_id }}, '{{ $json.customer_email }}', '{{ $json.survey_token }}', NOW() + INTERVAL '1 hour', 'scheduled')"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send CSAT Survey Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "={{ $json.customer_email }}",
+        "subject": "How did we do? Rate your support experience",
+        "message": "Hi {{ $json.customer_name }},\n\nYour support ticket TKT-{{ $json.ticket_id }} has been resolved.\n\nHow was your experience? Please take 30 seconds to rate us:\n\n\u2b50\u2b50\u2b50\u2b50\u2b50 https://survey.company.com/csat/{{ $json.survey_token }}\n\nYour feedback helps us improve.\n\nSupport Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Ticket Resolved Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Survey Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Survey Data": {
+      "main": [
+        [
+          {
+            "node": "Schedule Survey Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Survey Send": {
+      "main": [
+        [
+          {
+            "node": "Send CSAT Survey Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-sup-91",
+  "tags": [
+    "support",
+    "feedback"
+  ]
+}

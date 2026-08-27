@@ -1,0 +1,124 @@
+{
+  "name": "KB Analytics Report",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly KB Analytics",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Aggregate KB Usage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total_searches, COUNT(CASE WHEN results_count = 0 THEN 1 END) as zero_results, AVG(results_count) as avg_results, COUNT(DISTINCT user_id) as unique_users, (SELECT title FROM kb_documents d JOIN kb_search_log sl ON sl.results_count > 0 GROUP BY d.id, d.title ORDER BY COUNT(*) DESC LIMIT 1) as top_article FROM kb_search_log WHERE searched_at >= NOW() - INTERVAL '7 days'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Analytics Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst hitRate = ((d.total_searches - d.zero_results) / d.total_searches * 100).toFixed(1);\nconst report = `KB Weekly Analytics\\n${'='.repeat(40)}\\n` +\n  `Total Searches: ${d.total_searches}\\n` +\n  `Hit Rate: ${hitRate}%\\n` +\n  `Zero-Result Searches: ${d.zero_results}\\n` +\n  `Unique Users: ${d.unique_users}\\n` +\n  `Avg Results per Search: ${parseFloat(d.avg_results).toFixed(1)}\\n` +\n  `Top Article: ${d.top_article}`;\nreturn [{json:{report, hit_rate: hitRate}}];"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Analytics to KB Manager",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "kb-manager@company.com",
+        "subject": "KB Weekly Analytics \u2014 {{ $now.format('MMM DD, YYYY') }}",
+        "message": "={{ $json.report }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly KB Analytics": {
+      "main": [
+        [
+          {
+            "node": "Aggregate KB Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate KB Usage": {
+      "main": [
+        [
+          {
+            "node": "Format Analytics Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Analytics Report": {
+      "main": [
+        [
+          {
+            "node": "Send Analytics to KB Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-70",
+  "tags": [
+    "knowledge_base",
+    "analytics"
+  ]
+}

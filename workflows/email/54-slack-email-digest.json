@@ -1,0 +1,130 @@
+{
+  "name": "Slack Email Digest",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Twice Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 12
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Important Emails",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://email-api:3000/api/important-unread",
+        "method": "GET",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "10"
+            },
+            {
+              "name": "since_hours",
+              "value": "12"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Email Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const emails = $input.first().json.emails || [];\nif (emails.length === 0) return [{json:{digest: 'No important emails in the last 12 hours.', count: 0}}];\nconst lines = emails.map((e, i) => `${i+1}. *${e.subject}* \u2014 From: ${e.from} (${e.received_at})`);\nconst digest = `\ud83d\udce7 *Email Digest* (Last 12h)\\n${lines.join('\\n')}`;\nreturn [{json:{digest, count: emails.length}}];"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Post Digest to Exec Channel",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#executive-updates",
+        "text": "={{ $json.digest }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Twice Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch Important Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Important Emails": {
+      "main": [
+        [
+          {
+            "node": "Format Email Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email Digest": {
+      "main": [
+        [
+          {
+            "node": "Post Digest to Exec Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-email-54",
+  "tags": [
+    "email",
+    "slack"
+  ]
+}

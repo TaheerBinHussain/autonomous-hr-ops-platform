@@ -1,0 +1,150 @@
+{
+  "name": "Knowledge Search",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Knowledge Search Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kb-search",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Search Qdrant Vector DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "url": "http://qdrant:6333/collections/knowledge_base/points/search",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "vector",
+              "value": "={{ $json.query_embedding }}"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            },
+            {
+              "name": "with_payload",
+              "value": "true"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Search Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-0",
+              "name": "query",
+              "value": "={{ $json.query }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-1",
+              "name": "results",
+              "value": "={{ $json.result.map(r => ({score: r.score, text: r.payload.text, source: r.payload.source})) }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "top_result",
+              "value": "={{ $json.result[0]?.payload?.text || 'No results found' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Log Search Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO kb_search_log (query, results_count, user_id, searched_at) VALUES ('{{ $json.query }}', {{ $json.results.length }}, {{ $json.user_id }}, NOW())"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Knowledge Search Webhook": {
+      "main": [
+        [
+          {
+            "node": "Search Qdrant Vector DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Qdrant Vector DB": {
+      "main": [
+        [
+          {
+            "node": "Format Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Search Results": {
+      "main": [
+        [
+          {
+            "node": "Log Search Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-63",
+  "tags": [
+    "knowledge_base"
+  ]
+}

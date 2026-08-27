@@ -1,0 +1,125 @@
+{
+  "name": "Meeting Analytics Report",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly Meeting Analytics",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Aggregate Meeting Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total_meetings, AVG(duration_minutes) as avg_duration, SUM(duration_minutes) as total_meeting_hours, COUNT(DISTINCT meeting_id) as unique_meetings, (SELECT COUNT(*) FROM action_items WHERE created_at >= NOW() - INTERVAL '7 days') as action_items_created, (SELECT COUNT(*) FROM action_items WHERE status = 'completed' AND updated_at >= NOW() - INTERVAL '7 days') as action_items_completed FROM meeting_summaries WHERE summarized_at >= NOW() - INTERVAL '7 days'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Format Meeting Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst completionRate = d.action_items_created > 0 ? (d.action_items_completed / d.action_items_created * 100).toFixed(1) : 0;\nconst report = `Meeting Analytics Report\\n${'='.repeat(40)}\\n` +\n  `Total Meetings: ${d.total_meetings}\\n` +\n  `Avg Duration: ${parseFloat(d.avg_duration).toFixed(0)} min\\n` +\n  `Total Meeting Time: ${(d.total_meeting_hours / 60).toFixed(1)} hours\\n` +\n  `Action Items Created: ${d.action_items_created}\\n` +\n  `Action Items Completed: ${d.action_items_completed} (${completionRate}%)`;\nreturn [{json:{report, completion_rate: completionRate}}];"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Send Analytics Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "toEmail": "management@company.com",
+        "subject": "Weekly Meeting Analytics \u2014 {{ $now.format('MMM DD, YYYY') }}",
+        "message": "={{ $json.report }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred-1",
+          "name": "SMTP Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Meeting Analytics": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Meeting Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Meeting Data": {
+      "main": [
+        [
+          {
+            "node": "Format Meeting Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Meeting Report": {
+      "main": [
+        [
+          {
+            "node": "Send Analytics Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-meet-85",
+  "tags": [
+    "meetings",
+    "analytics",
+    "reporting"
+  ]
+}

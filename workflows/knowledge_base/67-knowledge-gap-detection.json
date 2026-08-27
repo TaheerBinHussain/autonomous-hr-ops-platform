@@ -1,0 +1,138 @@
+{
+  "name": "Knowledge Gap Detection",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Weekly Gap Analysis",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch Unanswered Queries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT query, COUNT(*) as frequency FROM kb_search_log WHERE results_count = 0 AND searched_at >= NOW() - INTERVAL '7 days' GROUP BY query ORDER BY frequency DESC LIMIT 50"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pg-cred-1",
+          "name": "Postgres DB"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Identify Knowledge Gaps",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "url": "http://ai-backend:8000/kb/detect-gaps",
+        "method": "POST",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "unanswered_queries",
+              "value": "={{ $json }}"
+            },
+            {
+              "name": "existing_categories",
+              "value": "={{ $json.categories }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Report Gaps to KB Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "postMessage",
+        "channel": "#knowledge-base-team",
+        "text": ":mag: Weekly Knowledge Gap Report\n{{ $json.gap_count }} gaps identified this week.\n\nTop missing topics:\n{{ $json.top_gaps.map((g, i) => `${i+1}. ${g.topic} (${g.frequency} searches)`).join('\\n') }}\n\nFull report: https://kb.company.com/gaps"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred-1",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Gap Analysis": {
+      "main": [
+        [
+          {
+            "node": "Fetch Unanswered Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Unanswered Queries": {
+      "main": [
+        [
+          {
+            "node": "Identify Knowledge Gaps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify Knowledge Gaps": {
+      "main": [
+        [
+          {
+            "node": "Report Gaps to KB Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-kb-67",
+  "tags": [
+    "knowledge_base",
+    "ai",
+    "analytics"
+  ]
+}
