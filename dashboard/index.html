@@ -1100,6 +1100,111 @@
         </div>
       </section>
 
+      <!-- ─── SUPERVISOR DEMO SECTION ─── -->
+      <section class="section" id="supervisor-demo-section" style="margin-bottom: 30px;">
+        <div class="section-header reveal" style="background: linear-gradient(135deg, rgba(0,212,255,0.08), rgba(139,92,246,0.08)); padding: 18px 24px; border-radius: var(--radius); border: 1px solid rgba(0,212,255,0.25);">
+          <div class="section-icon" style="background:linear-gradient(135deg, var(--blue), var(--purple)); color:#000; font-weight:bold;">🚀</div>
+          <div>
+            <div class="section-title" style="font-size: 1.25rem; background: linear-gradient(90deg, #00d4ff, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Live Supervisor Demo: Autonomous HR Recruitment AI Pipeline</div>
+            <div class="section-subtitle">HR posts job vacancy ➔ Candidate submits application ➔ AI screens resume ➔ System autonomously issues Offer Letter or Rejection Email</div>
+          </div>
+          <div class="section-badge" style="background:rgba(16,185,129,0.15); color:var(--green); border-color:rgba(16,185,129,0.3);">End-to-End Live Workflow</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px;">
+          <!-- Left: HR Job & Candidate Application Portal -->
+          <div class="demo-card" style="background: var(--bg-card); border: 1px solid var(--border-hov); border-radius: var(--radius); padding: 24px; backdrop-filter: blur(var(--blur));">
+            <h3 style="font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:700; color:var(--blue); margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+              <span>📝</span> Step 1 &amp; 2: HR Job Posting &amp; Candidate Application
+            </h3>
+
+            <form id="form-demo-pipeline">
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                  <label class="form-label" style="font-size:12px;">Job Title</label>
+                  <input class="form-input" id="demo-job-title" type="text" value="Senior AI Platform Engineer" required />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:12px;">Offered Salary / Compensation</label>
+                  <input class="form-input" id="demo-salary" type="text" value="$125,000 / year" required />
+                </div>
+              </div>
+
+              <div style="margin-bottom:12px;">
+                <label class="form-label" style="font-size:12px;">Required Skills &amp; Job Requirements</label>
+                <input class="form-input" id="demo-job-desc" type="text" value="Python, FastAPI, Docker, Kubernetes, n8n automation, OpenAI LLM integration, PostgreSQL" required />
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                  <label class="form-label" style="font-size:12px;">Candidate Name</label>
+                  <input class="form-input" id="demo-candidate-name" type="text" value="Sarah Connor" required />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:12px;">Candidate Email</label>
+                  <input class="form-input" id="demo-candidate-email" type="email" value="sarah.connor@example.com" required />
+                </div>
+              </div>
+
+              <div style="margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <label class="form-label" style="font-size:12px; margin:0;">Candidate Resume Text</label>
+                  <div style="display:flex; gap:6px;">
+                    <button type="button" id="btn-load-passed-demo" style="padding:4px 10px; font-size:11px; background:rgba(16,185,129,0.15); color:var(--green); border:1px solid rgba(16,185,129,0.3); border-radius:6px; cursor:pointer;">🟢 Load Qualified Candidate (~88%)</button>
+                    <button type="button" id="btn-load-failed-demo" style="padding:4px 10px; font-size:11px; background:rgba(239,68,68,0.15); color:var(--red); border:1px solid rgba(239,68,68,0.3); border-radius:6px; cursor:pointer;">🔴 Load Unqualified Candidate (~45%)</button>
+                  </div>
+                </div>
+                <textarea class="form-textarea" id="demo-resume" style="min-height:130px; font-size:12px;" required></textarea>
+              </div>
+
+              <button type="submit" id="btn-submit-demo" class="action-btn btn-blue" style="width:100%; padding:12px; font-size:14px; font-weight:700;">
+                🚀 Execute Autonomous AI Pipeline
+              </button>
+            </form>
+          </div>
+
+          <!-- Right: Execution Stepper & Live Inbox Preview -->
+          <div class="demo-card" style="background: var(--bg-card); border: 1px solid var(--border-hov); border-radius: var(--radius); padding: 24px; backdrop-filter: blur(var(--blur)); display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <h3 style="font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:700; color:var(--purple); margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                <span>🧠</span> Step 3 &amp; 4: Autonomous Execution &amp; Sent Email Dispatcher
+              </h3>
+
+              <!-- Live Execution Pipeline Stepper -->
+              <div id="demo-stepper" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-bottom:20px;">
+                <div class="step-box" id="step-1" style="padding:10px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; text-align:center; transition:all 0.3s ease;">
+                  <div style="font-size:18px;">📝</div>
+                  <div style="font-size:11px; font-weight:600; margin-top:4px;">1. Job Posted</div>
+                </div>
+                <div class="step-box" id="step-2" style="padding:10px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; text-align:center; transition:all 0.3s ease;">
+                  <div style="font-size:18px;">📩</div>
+                  <div style="font-size:11px; font-weight:600; margin-top:4px;">2. Applied</div>
+                </div>
+                <div class="step-box" id="step-3" style="padding:10px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; text-align:center; transition:all 0.3s ease;">
+                  <div style="font-size:18px;">🧠</div>
+                  <div style="font-size:11px; font-weight:600; margin-top:4px;">3. AI Screened</div>
+                </div>
+                <div class="step-box" id="step-4" style="padding:10px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; text-align:center; transition:all 0.3s ease;">
+                  <div style="font-size:18px;">✉️</div>
+                  <div style="font-size:11px; font-weight:600; margin-top:4px;">4. Email Sent</div>
+                </div>
+              </div>
+
+              <!-- Live Inbox Preview Output Container -->
+              <div id="demo-output-container" style="background: rgba(10,10,26,0.7); border: 1px solid var(--border-hov); border-radius: 12px; padding: 16px; min-height: 230px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+                <div style="font-size:36px; opacity:0.3; margin-bottom:8px;">📧</div>
+                <div style="font-size:13px; color:var(--text-2);">Ready for Live Supervisor Demo.<br/>Click <strong>"Execute Autonomous AI Pipeline"</strong> or load a preset candidate to run the complete recruitment workflow!</div>
+              </div>
+            </div>
+
+            <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-2);">
+              <span>⚡ API Endpoint: <code style="color:var(--blue)">POST /hr/process-candidate-pipeline</code></span>
+              <span>🔄 n8n Webhook: <code style="color:var(--green)">wf-hr-02-resume-screening</code></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ─── QUICK ACTIONS ─── -->
       <section class="section">
         <div class="section-header reveal">

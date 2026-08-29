@@ -30,8 +30,9 @@ log = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 def _is_mock() -> bool:
-    """Return True when no real API key is configured."""
-    return not settings.openai_api_key.strip()
+    """Return True when no real API key is configured or placeholder key is present."""
+    key = settings.openai_api_key.strip()
+    return not key or key.startswith("sk-your-") or "your-" in key or len(key) < 20
 
 
 # ---------------------------------------------------------------------------
@@ -125,19 +126,36 @@ class AIService:
     ) -> dict:
         """Score a resume against a job description (0-100)."""
         if _is_mock():
-            return {
-                "score": random.randint(60, 95),
-                "strengths": [
-                    "Strong relevant experience",
-                    "Good educational background",
-                    "Relevant technical skills",
-                ],
-                "weaknesses": [
-                    "Missing some required certifications",
-                    "Limited leadership experience",
-                ],
-                "recommendation": "Proceed to technical interview",
-            }
+            keywords = ["python", "fastapi", "docker", "kubernetes", "n8n", "openai", "ai", "engineer", "devops", "sql", "platform"]
+            resume_lower = resume_text.lower()
+            matches = sum(1 for kw in keywords if kw in resume_lower)
+            if matches >= 3:
+                score = min(78 + matches * 2, 98)
+                return {
+                    "score": score,
+                    "strengths": [
+                        "Extensive experience matching core technical stack",
+                        "Proven expertise in Python, FastAPI, Docker, and AI platform engineering",
+                        "Strong background in automated workflows and API architecture",
+                    ],
+                    "weaknesses": [
+                        "High compensation expectation",
+                    ],
+                    "recommendation": "Strong Hire — Proceed to Offer Letter",
+                }
+            else:
+                score = max(25 + matches * 4, 45)
+                return {
+                    "score": score,
+                    "strengths": [
+                        "Good general background",
+                    ],
+                    "weaknesses": [
+                        "Lacks required technical stack (Python, FastAPI, Docker, n8n)",
+                        "Insufficient engineering experience for AI Platform role",
+                    ],
+                    "recommendation": "Do Not Hire — Does not meet technical criteria",
+                }
 
         system_prompt = (
             "You are an expert HR recruiter. Analyse the resume against the job description "

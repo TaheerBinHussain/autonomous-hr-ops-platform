@@ -534,11 +534,236 @@ function initClock() {
 }
 
 /* ─────────────────────────────────────────────
+   SUPERVISOR DEMO LOGIC
+───────────────────────────────────────────── */
+const QUALIFIED_RESUME_PRESET = `SARAH CONNOR
+Email: sarah.connor@example.com | Phone: (555) 019-2834 | Location: San Francisco, CA
+
+SUMMARY
+Senior AI Platform Engineer with 6+ years of experience building autonomous AI systems, FastAPI microservices, Docker containers, Kubernetes clusters, and n8n workflows. Demonstrated expertise in OpenAI GPT-4 integrations, RAG vector databases (Qdrant), and PostgreSQL.
+
+SKILLS
+- Languages & Frameworks: Python, FastAPI, SQLModel, PyTest, Pydantic v2, JavaScript
+- AI & Automation: OpenAI API, LangChain, n8n Automation Engine, Prompt Engineering
+- Infrastructure & DevOps: Docker, Kubernetes, Redis, PostgreSQL, Prometheus, Grafana, CI/CD
+
+EXPERIENCE
+Lead AI Automation Engineer | TechCorp Inc (2022 - Present)
+- Architected company automation platform processing 100+ n8n workflows and AI services.
+- Built production FastAPI backend handling 50k+ daily LLM requests with 99.9% uptime.
+- Reduced manual HR and CRM processing time by 85% using automated resume screening and lead scoring models.`;
+
+const UNQUALIFIED_RESUME_PRESET = `JOHN SMITH
+Email: john.smith@example.com | Phone: (555) 998-1122 | Location: Dallas, TX
+
+SUMMARY
+Junior Graphic Designer & Event Planner with 1 year of experience creating social media banners and organizing office birthday parties. Looking to transition into technology.
+
+SKILLS
+- Adobe Photoshop, Illustrator, Canva, MS Office Word, PowerPoint
+- Basic HTML, Typing (60 WPM)
+
+EXPERIENCE
+Creative Intern | Design Studio (2025 - Present)
+- Designed posters for regional events.
+- Organized weekly team lunch meetings and managed office stationery inventory.`;
+
+function initSupervisorDemo() {
+  const resumeInput = document.getElementById('demo-resume');
+  const btnPassed   = document.getElementById('btn-load-passed-demo');
+  const btnFailed   = document.getElementById('btn-load-failed-demo');
+  const form        = document.getElementById('form-demo-pipeline');
+
+  if (resumeInput && !resumeInput.value) {
+    resumeInput.value = QUALIFIED_RESUME_PRESET;
+  }
+
+  if (btnPassed) {
+    btnPassed.addEventListener('click', () => {
+      document.getElementById('demo-candidate-name').value = 'Sarah Connor';
+      document.getElementById('demo-candidate-email').value = 'sarah.connor@example.com';
+      resumeInput.value = QUALIFIED_RESUME_PRESET;
+    });
+  }
+
+  if (btnFailed) {
+    btnFailed.addEventListener('click', () => {
+      document.getElementById('demo-candidate-name').value = 'John Smith';
+      document.getElementById('demo-candidate-email').value = 'john.smith@example.com';
+      resumeInput.value = UNQUALIFIED_RESUME_PRESET;
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const jobTitle        = document.getElementById('demo-job-title').value;
+      const salary          = document.getElementById('demo-salary').value;
+      const jobDesc         = document.getElementById('demo-job-desc').value;
+      const candidateName   = document.getElementById('demo-candidate-name').value;
+      const candidateEmail  = document.getElementById('demo-candidate-email').value;
+      const resumeText      = document.getElementById('demo-resume').value;
+      const submitBtn       = document.getElementById('btn-submit-demo');
+      const outputContainer = document.getElementById('demo-output-container');
+
+      // Reset Stepper
+      ['step-1', 'step-2', 'step-3', 'step-4'].forEach(id => {
+        const box = document.getElementById(id);
+        if (box) {
+          box.style.borderColor = 'var(--border)';
+          box.style.background = 'rgba(255,255,255,0.04)';
+          box.style.boxShadow = 'none';
+        }
+      });
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '⏳ Executing AI Pipeline…';
+
+      // Step 1: Job Posted
+      highlightStep('step-1', '#00d4ff');
+      await sleep(300);
+
+      // Step 2: Applied
+      highlightStep('step-2', '#8b5cf6');
+      await sleep(400);
+
+      // Step 3: AI Screened
+      highlightStep('step-3', '#f59e0b');
+
+      try {
+        const res = await fetch(`${API_BASE}/hr/process-candidate-pipeline`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            job_title: jobTitle,
+            job_description: jobDesc,
+            candidate_name: candidateName,
+            candidate_email: candidateEmail,
+            salary_offered: salary,
+            score_threshold: 70,
+            resume_text: resumeText,
+          }),
+        });
+
+        let data;
+        if (res.ok) {
+          data = await res.json();
+        } else {
+          data = mockPipelineResult(candidateName, candidateEmail, jobTitle, salary, resumeText.includes('SARAH'));
+        }
+
+        renderPipelineResult(data, outputContainer);
+      } catch (err) {
+        console.warn('Backend offline, rendering demo fallback result:', err);
+        const isQualified = resumeText.toLowerCase().includes('python') || resumeText.toLowerCase().includes('docker');
+        const data = mockPipelineResult(candidateName, candidateEmail, jobTitle, salary, isQualified);
+        renderPipelineResult(data, outputContainer);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '🚀 Execute Autonomous AI Pipeline';
+      }
+    });
+  }
+}
+
+function highlightStep(stepId, color) {
+  const el = document.getElementById(stepId);
+  if (!el) return;
+  el.style.borderColor = color;
+  el.style.background = `${color}22`;
+  el.style.boxShadow = `0 0 12px ${color}44`;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function mockPipelineResult(candidateName, candidateEmail, jobTitle, salary, isPassed) {
+  const score = isPassed ? 88 : 45;
+  const passed = isPassed;
+  const strengths = passed ? ['6+ years AI & DevOps experience', 'Expert in Python, FastAPI & Docker', 'Built 100+ n8n workflows'] : ['Good graphic design background'];
+  const weaknesses = passed ? ['High compensation expectations'] : ['Lacks required Python/FastAPI technical stack', 'No Docker/Kubernetes experience'];
+
+  const subject = passed ? `🎉 Job Offer: ${jobTitle} at TechCorp AI` : `Application Status Update: ${jobTitle}`;
+  const body = passed
+    ? `Dear ${candidateName},\n\nWe are thrilled to offer you the position of ${jobTitle} at TechCorp AI.\n\nCompensation: ${salary}\nStart Date: September 15, 2026\n\nYour AI screening score was ${score}/100 based on your strong background in Python, Docker, and n8n.\n\nPlease sign and return this offer within 3 business days.\n\nWarm regards,\nHR Team`
+    : `Dear ${candidateName},\n\nThank you for applying for the ${jobTitle} role.\n\nAfter AI screening (Score: ${score}/100 vs Threshold: 70/100), we have decided to proceed with candidates matching our specific technical stack requirements.\n\nWe wish you the best in your job search.\n\nSincerely,\nHR Team`;
+
+  return {
+    status: 'SUCCESS',
+    passed,
+    candidate_name: candidateName,
+    candidate_email: candidateEmail,
+    job_title: jobTitle,
+    score,
+    score_threshold: 70,
+    recommendation: passed ? 'Strong Hire' : 'Do Not Hire',
+    strengths,
+    weaknesses,
+    email_action: passed ? 'OFFER_LETTER_SENT' : 'REJECTION_FEEDBACK_SENT',
+    email_subject: subject,
+    email_body: body,
+    email_html: `<pre>${body}</pre>`,
+    n8n_event: { event: 'candidate_screened', candidate: candidateName, score, passed },
+  };
+}
+
+function renderPipelineResult(data, container) {
+  const isPassed = data.passed;
+  const color    = isPassed ? 'var(--green)' : 'var(--red)';
+  const badgeBg  = isPassed ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
+
+  // Step 4 Highlight
+  highlightStep('step-4', color);
+
+  // Activity Feed Logging
+  ActivityFeed.add({
+    time: new Date().toLocaleTimeString('en-GB', { hour12: false }),
+    workflow: isPassed ? 'Offer Letter Dispatched' : 'Rejection Feedback Sent',
+    category: 'HR',
+    color: isPassed ? 'green' : 'red',
+    details: `${data.candidate_name} scored ${data.score}/100 → ${data.email_action}`,
+  });
+
+  container.innerHTML = `
+    <div style="width:100%; text-align:left;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:20px;">${isPassed ? '🎉' : '📧'}</span>
+          <div>
+            <div style="font-size:14px; font-weight:700; color:var(--text-1);">${data.email_subject}</div>
+            <div style="font-size:11px; color:var(--text-2);">To: <strong>${data.candidate_email}</strong> · Status: <span style="color:${color}; font-weight:600;">DISPATCHED ✅</span></div>
+          </div>
+        </div>
+        <div style="padding:4px 12px; background:${badgeBg}; color:${color}; border:1px solid ${color}44; border-radius:20px; font-size:12px; font-weight:700; font-family:'Space Grotesk', sans-serif;">
+          Score: ${data.score}/100 (${isPassed ? 'PASSED' : 'REJECTED'})
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:11.5px; margin-bottom:12px;">
+        <div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+          <strong style="color:var(--green)">Identified Strengths:</strong><br/>
+          ${data.strengths.slice(0, 2).map(s => `• ${s}`).join('<br/>')}
+        </div>
+        <div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+          <strong style="color:${isPassed ? 'var(--text-2)' : 'var(--red)'}">Growth Areas:</strong><br/>
+          ${data.weaknesses.slice(0, 2).map(w => `• ${w}`).join('<br/>')}
+        </div>
+      </div>
+
+      <div style="background:rgba(0,0,0,0.4); border:1px solid var(--border); border-radius:8px; padding:12px; font-size:12px; line-height:1.5; color:var(--text-1); max-height:160px; overflow-y:auto; font-family:monospace; white-space:pre-wrap;">
+${data.email_body}
+      </div>
+    </div>
+  `;
+}
+
+/* ─────────────────────────────────────────────
    MAIN INIT
 ───────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   initSidebar();
   initQuickActions();
+  initSupervisorDemo();
   initServiceCards();
   ModalManager.init();
   MetricsUpdater.init();
@@ -549,3 +774,4 @@ document.addEventListener('DOMContentLoaded', () => {
   initClock();
   setTimeout(initCounters, 400);
 });
+

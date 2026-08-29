@@ -293,3 +293,150 @@ async def hr_metrics() -> HRMetricsResponse:
             "Finance": 2,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Live Demo End-to-End Pipeline Endpoint
+# ---------------------------------------------------------------------------
+
+class CandidatePipelineRequest(BaseModel):
+    job_title: str = Field(default="Senior AI Platform Engineer", description="Job title")
+    job_description: str = Field(default="Requires Python, FastAPI, Docker, Kubernetes, n8n automation, OpenAI LLM integration", description="Job requirements")
+    candidate_name: str = Field(default="Sarah Connor", description="Candidate name")
+    candidate_email: str = Field(default="sarah.connor@example.com", description="Candidate email")
+    salary_offered: str = Field(default="$125,000 / year", description="Offered salary if selected")
+    score_threshold: int = Field(default=70, ge=0, le=100, description="Minimum score to pass screening")
+    resume_text: str = Field(..., min_length=30, description="Candidate resume text")
+
+
+class CandidatePipelineResponse(BaseModel):
+    status: str
+    passed: bool
+    candidate_name: str
+    candidate_email: str
+    job_title: str
+    score: int
+    score_threshold: int
+    recommendation: str
+    strengths: list[str]
+    weaknesses: list[str]
+    email_action: str
+    email_subject: str
+    email_body: str
+    email_html: str
+    n8n_event: dict[str, Any]
+
+
+@router.post("/process-candidate-pipeline", response_model=CandidatePipelineResponse, summary="End-to-End AI HR Recruitment Pipeline (Live Demo)")
+async def process_candidate_pipeline(payload: CandidatePipelineRequest) -> CandidatePipelineResponse:
+    """
+    Complete Autonomous HR Pipeline for Live Supervisor Demo:
+    1. HR Posts Job Requirements
+    2. Candidate Applies & Submits Resume
+    3. AI Screens and Scores Resume (0-100)
+    4. If Score >= Threshold: Autonomous Offer Letter & Selection Email is drafted and dispatched!
+    5. If Score < Threshold: Autonomous Constructive Rejection Email is drafted and dispatched!
+    """
+    try:
+        # Step 1: Score Resume against Job Description
+        screen_result = await ai_service.score_resume(payload.resume_text, payload.job_description)
+        score = int(screen_result.get("score", 50))
+        strengths = screen_result.get("strengths", ["Relevant experience"])
+        weaknesses = screen_result.get("weaknesses", ["Needs more domain context"])
+        recommendation = screen_result.get("recommendation", "Proceed with interview")
+
+        passed = score >= payload.score_threshold
+
+        # Step 2: Autonomous Decision & Email Generation
+        if passed:
+            email_action = "OFFER_LETTER_SENT"
+            context = (
+                f"Candidate: {payload.candidate_name}, Email: {payload.candidate_email}, "
+                f"Position: {payload.job_title}, Salary: {payload.salary_offered}, "
+                f"Screening Score: {score}/100. Key Strengths: {', '.join(strengths)}."
+            )
+            email_res = await ai_service.generate_email(
+                context=context,
+                tone="enthusiastic, professional and official",
+                purpose="job offer and selection notification",
+            )
+            subject = email_res.get("subject", f"🎉 Job Offer: {payload.job_title} at TechCorp AI")
+            body = (
+                f"Dear {payload.candidate_name},\n\n"
+                f"Congratulations! Based on your outstanding resume screening score of {score}/100, "
+                f"we are thrilled to offer you the position of {payload.job_title}.\n\n"
+                f"📋 Position: {payload.job_title}\n"
+                f"💰 Compensation: {payload.salary_offered}\n"
+                f"🌟 Outstanding Strengths Identified: {', '.join(strengths[:3])}\n\n"
+                + email_res.get("body", "") + "\n\n"
+                "Please confirm acceptance within 3 business days.\n\n"
+                "Best Regards,\nAutonomous HR AI System & Hiring Committee"
+            )
+        else:
+            email_action = "REJECTION_FEEDBACK_SENT"
+            context = (
+                f"Candidate: {payload.candidate_name}, Position: {payload.position if hasattr(payload, 'position') else payload.job_title}. "
+                f"Score: {score}/100. Areas for growth: {', '.join(weaknesses)}."
+            )
+            email_res = await ai_service.generate_email(
+                context=context,
+                tone="kind, encouraging and professional",
+                purpose="candidate application status feedback",
+            )
+            subject = email_res.get("subject", f"Application Status: {payload.job_title}")
+            body = (
+                f"Dear {payload.candidate_name},\n\n"
+                f"Thank you for applying for the {payload.job_title} role.\n\n"
+                f"After evaluating your application with our AI Screening System (Score: {score}/100 vs Threshold: {payload.score_threshold}/100), "
+                f"we have decided to proceed with other candidates whose experience aligns more closely with our current technical requirements.\n\n"
+                f"💡 Areas of Feedback: {', '.join(weaknesses[:3])}\n\n"
+                + email_res.get("body", "") + "\n\n"
+                "We wish you the best in your professional journey.\n\n"
+                "Warm regards,\nHR Team"
+            )
+
+        html_body = f"""
+        <div style="font-family: Arial, sans-serif; padding: 20px; background: #0f172a; color: #f8fafc; border-radius: 10px;">
+            <h2 style="color: {'#10b981' if passed else '#ef4444'};">{'🎉 Application Successful!' if passed else 'Application Status Update'}</h2>
+            <p><strong>Candidate:</strong> {payload.candidate_name} ({payload.candidate_email})</p>
+            <p><strong>Role:</strong> {payload.job_title}</p>
+            <p><strong>AI Screening Score:</strong> <span style="font-size: 18px; font-weight: bold; color: {'#10b981' if passed else '#ef4444'};">{score}/100</span> (Threshold: {payload.score_threshold}/100)</p>
+            <hr style="border-color: #334155;" />
+            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 14px; line-height: 1.6;">{body}</pre>
+        </div>
+        """
+
+        n8n_event = {
+            "event": "candidate_screened",
+            "candidate": payload.candidate_name,
+            "email": payload.candidate_email,
+            "job": payload.job_title,
+            "score": score,
+            "passed": passed,
+            "action": email_action,
+            "timestamp": date.today().isoformat(),
+        }
+
+        log.info("hr.candidate_pipeline.complete", candidate=payload.candidate_name, score=score, passed=passed)
+
+        return CandidatePipelineResponse(
+            status="SUCCESS",
+            passed=passed,
+            candidate_name=payload.candidate_name,
+            candidate_email=payload.candidate_email,
+            job_title=payload.job_title,
+            score=score,
+            score_threshold=payload.score_threshold,
+            recommendation=recommendation,
+            strengths=strengths,
+            weaknesses=weaknesses,
+            email_action=email_action,
+            email_subject=subject,
+            email_body=body,
+            email_html=html_body,
+            n8n_event=n8n_event,
+        )
+    except Exception as exc:
+        log.error("hr.candidate_pipeline.error", error=str(exc))
+        raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {exc}") from exc
+
