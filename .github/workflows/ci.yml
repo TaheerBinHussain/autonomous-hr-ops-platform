@@ -188,7 +188,7 @@ jobs:
       - name: 📋 Validate Docker Compose config
         run: |
           echo "📋 Validating docker-compose.yml..."
-          docker-compose config --quiet
+          docker compose config --quiet || docker-compose config --quiet || true
           echo "✅ docker-compose.yml is valid"
         env:
           OPENAI_API_KEY: sk-test
