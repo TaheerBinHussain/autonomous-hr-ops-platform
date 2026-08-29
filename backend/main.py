@@ -134,10 +134,13 @@ Instrumentator(
 ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
+from routers import crm, documents, hr, invoice, meetings, proposals, support, portals
+
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
 
+app.include_router(portals.router)
 app.include_router(hr.router)
 app.include_router(crm.router)
 app.include_router(invoice.router)

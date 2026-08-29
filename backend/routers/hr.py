@@ -417,6 +417,18 @@ async def process_candidate_pipeline(payload: CandidatePipelineRequest) -> Candi
             "timestamp": date.today().isoformat(),
         }
 
+        # Dispatch real email to Mailpit SMTP
+        try:
+            from services.email_service import email_service
+            email_service.send_email(
+                to_email=payload.candidate_email,
+                subject=subject,
+                html_body=html_body,
+                text_body=body,
+            )
+        except Exception as smtp_err:
+            log.warning("hr.candidate_pipeline.smtp_error", error=str(smtp_err))
+
         log.info("hr.candidate_pipeline.complete", candidate=payload.candidate_name, score=score, passed=passed)
 
         return CandidatePipelineResponse(

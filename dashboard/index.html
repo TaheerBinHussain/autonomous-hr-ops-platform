@@ -1035,6 +1035,20 @@
           Proposals
         </div>
 
+        <div class="nav-section-label">Live Demo Portals</div>
+        <div class="nav-item" onclick="window.open('http://localhost:8000/admin','_blank')">
+          <span class="nav-icon">👑</span>
+          HR Admin Panel
+        </div>
+        <div class="nav-item" onclick="window.open('http://localhost:8000/apply','_blank')">
+          <span class="nav-icon">💼</span>
+          Candidate Portal
+        </div>
+        <div class="nav-item" onclick="window.open('http://localhost:8025','_blank')">
+          <span class="nav-icon">📧</span>
+          Mailpit Web Inbox
+        </div>
+
         <div class="nav-section-label">Tools</div>
         <div class="nav-item" onclick="window.open('http://localhost:5678','_blank')">
           <span class="nav-icon">⚙️</span>
@@ -1197,9 +1211,16 @@
               </div>
             </div>
 
-            <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-2);">
-              <span>⚡ API Endpoint: <code style="color:var(--blue)">POST /hr/process-candidate-pipeline</code></span>
-              <span>🔄 n8n Webhook: <code style="color:var(--green)">wf-hr-02-resume-screening</code></span>
+            <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-2);">
+                <span>⚡ API Endpoint: <code style="color:var(--blue)">POST /hr/process-candidate-pipeline</code></span>
+                <span>🔄 n8n Webhook: <code style="color:var(--green)">wf-hr-02-resume-screening</code></span>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button type="button" onclick="window.open('http://localhost:8000/admin','_blank')" style="flex:1; padding:8px; font-size:11px; font-weight:700; background:rgba(0,212,255,0.12); color:var(--blue); border:1px solid rgba(0,212,255,0.3); border-radius:6px; cursor:pointer;">👑 Open HR Admin Panel</button>
+                <button type="button" onclick="window.open('http://localhost:8000/apply','_blank')" style="flex:1; padding:8px; font-size:11px; font-weight:700; background:rgba(139,92,246,0.12); color:var(--purple); border:1px solid rgba(139,92,246,0.3); border-radius:6px; cursor:pointer;">💼 Open Candidate Portal</button>
+                <button type="button" onclick="window.open('http://localhost:8025','_blank')" style="flex:1; padding:8px; font-size:11px; font-weight:700; background:rgba(16,185,129,0.12); color:var(--green); border:1px solid rgba(16,185,129,0.3); border-radius:6px; cursor:pointer;">📧 Open Mailpit Web Inbox</button>
+              </div>
             </div>
           </div>
         </div>
