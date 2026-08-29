@@ -99,18 +99,53 @@ async def get_candidate_applications():
     return APPLICATIONS_DB
 
 
-@router.post("/api/applications", summary="Record Candidate Application")
-async def record_candidate_application(payload: ApplicationRecordRequest):
-    record = {
-        "candidate_name": payload.candidate_name,
-        "candidate_email": payload.candidate_email,
-        "job_title": payload.job_title,
-        "score": payload.score,
-        "status": "PASSED" if payload.passed else "REJECTED",
-        "action": payload.action,
-    }
-    APPLICATIONS_DB.insert(0, record)
-    return {"status": "SUCCESS", "application": record}
+class OnboardingTriggerRequest(BaseModel):
+    candidate_name: str
+    candidate_email: str
+    job_title: str
+
+@router.post("/api/trigger-onboarding", summary="Trigger Onboarding & IT Access Provisioning")
+async def trigger_candidate_onboarding(payload: OnboardingTriggerRequest):
+    subject = f"🎉 Welcome to TechCorp! Day-1 Onboarding & IT Access Kit for {payload.job_title}"
+    html_body = f"""
+    <div style="font-family: Arial, sans-serif; padding: 24px; background: #0b0f19; color: #f8fafc; border-radius: 12px; border: 1px solid #1e293b;">
+      <h2 style="color: #10b981; margin-top: 0;">🚀 Welcome to the Team, {payload.candidate_name}!</h2>
+      <p>Congratulations on accepting the position of <strong>{payload.job_title}</strong>.</p>
+      
+      <h3 style="color: #00d4ff; border-bottom: 1px solid #334155; padding-bottom: 8px;">📋 Automated Day-1 IT Onboarding Checklist</h3>
+      <ul style="line-height: 1.8; color: #cbd5e1;">
+        <li>✅ GitHub Enterprise Access Granted</li>
+        <li>✅ AWS IAM Developer Role Created</li>
+        <li>✅ Slack #welcome & #engineering Channels Invited</li>
+        <li>✅ Hardware Laptop & Security YubiKey Dispatched</li>
+        <li>✅ Orientation Calendar Sync Scheduled</li>
+      </ul>
+      
+      <p style="margin-top: 20px; font-size: 13px; color: #94a3b8;">
+        Sent via Nexus Autonomous HR & IT Provisioning Workflow Engine.
+      </p>
+    </div>
+    """
+    
+    # Send email via SMTP
+    try:
+        from services.email_service import email_service
+        email_service.send_email(
+            to_email=payload.candidate_email,
+            subject=subject,
+            html_body=html_body,
+            text_body=f"Welcome {payload.candidate_name}! Your onboarding kit for {payload.job_title} is ready.",
+        )
+    except Exception as e:
+        print("Onboarding SMTP error:", e)
+
+    # Update candidate status in APPLICATIONS_DB
+    for app in APPLICATIONS_DB:
+        if app["candidate_name"] == payload.candidate_name:
+            app["action"] = "ONBOARDED & ACCESS PROVISIONED ✅"
+            break
+
+    return {"status": "SUCCESS", "message": f"Onboarding kit dispatched to {payload.candidate_email}"}
 
 
 # ---------------------------------------------------------------------------
@@ -258,12 +293,32 @@ async def hr_admin_panel():
             <td>${a.candidate_email}</td>
             <td>${a.job_title}</td>
             <td><span class="badge ${a.status === 'PASSED' ? 'badge-pass' : 'badge-fail'}">${a.score} / 100</span></td>
-            <td><span style="color:${a.status === 'PASSED' ? 'var(--green)' : 'var(--red)'}; font-weight:bold;">${a.action}</span></td>
+            <td>
+              <span style="color:${a.status === 'PASSED' ? 'var(--green)' : 'var(--red)'}; font-weight:bold;">${a.action}</span>
+              ${a.status === 'PASSED' && !a.action.includes('ONBOARDED') ? `<br/><button onclick="triggerOnboarding('${a.candidate_name}', '${a.candidate_email}', '${a.job_title}')" style="margin-top:4px; padding:4px 10px; font-size:11px; background:rgba(16,185,129,0.2); color:var(--green); border:1px solid var(--green); border-radius:6px; cursor:pointer; font-weight:bold;">🚀 Trigger Day-1 IT Onboarding</button>` : ''}
+            </td>
             <td><a href="http://localhost:8025" target="_blank" style="color:var(--blue)">View Email in Mailpit</a></td>
           </tr>
         `).join('');
       } catch (e) {
         console.error('Error loading applications:', e);
+      }
+    }
+
+    async function triggerOnboarding(name, email, job) {
+      if (!confirm(`Trigger Day-1 IT Access Provisioning & Onboarding Kit for ${name}?`)) return;
+      try {
+        const res = await fetch('/api/trigger-onboarding', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidate_name: name, candidate_email: email, job_title: job })
+        });
+        if (res.ok) {
+          alert(`Onboarding Kit & IT Credentials dispatched to ${email} via Mailpit!`);
+          await loadApplications();
+        }
+      } catch (err) {
+        alert('Failed to trigger onboarding: ' + err);
       }
     }
 

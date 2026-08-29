@@ -324,6 +324,9 @@ class CandidatePipelineResponse(BaseModel):
     email_subject: str
     email_body: str
     email_html: str
+    interview_slots: list[str] = Field(default_factory=list)
+    meet_link: str = Field(default="")
+    onboarding_checklist: list[str] = Field(default_factory=list)
     n8n_event: dict[str, Any]
 
 
@@ -417,6 +420,26 @@ async def process_candidate_pipeline(payload: CandidatePipelineRequest) -> Candi
             "timestamp": date.today().isoformat(),
         }
 
+        interview_slots = []
+        meet_link = ""
+        onboarding_checklist = []
+
+        if passed:
+            cand_slug = payload.candidate_name.lower().replace(" ", "-")
+            meet_link = f"https://meet.jit.si/nexus-interview-{cand_slug}"
+            interview_slots = [
+                "Tomorrow at 10:00 AM EST (Technical Panel Deep-Dive)",
+                "Tomorrow at 02:00 PM EST (Architecture & Systems Review)",
+                "Day after tomorrow at 11:00 AM EST (VP Engineering Sync)"
+            ]
+            onboarding_checklist = [
+                "Issue Company Laptop & Hardware Security Key",
+                "Provision GitHub Enterprise & AWS IAM Developer Access",
+                "Invite to Slack Channels (#welcome, #engineering, #ai-platform)",
+                "Schedule Day-1 Orientation with HR Manager",
+                "Sign NDA & Employment Agreement Package"
+            ]
+
         # Dispatch real email to Mailpit SMTP
         try:
             from services.email_service import email_service
@@ -446,6 +469,9 @@ async def process_candidate_pipeline(payload: CandidatePipelineRequest) -> Candi
             email_subject=subject,
             email_body=body,
             email_html=html_body,
+            interview_slots=interview_slots,
+            meet_link=meet_link,
+            onboarding_checklist=onboarding_checklist,
             n8n_event=n8n_event,
         )
     except Exception as exc:
