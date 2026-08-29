@@ -8,7 +8,6 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import structlog
-from config import settings
 
 log = structlog.get_logger(__name__)
 

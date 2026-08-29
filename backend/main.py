@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from config import settings
-from routers import crm, documents, hr, invoice, meetings, proposals, support
+from routers import crm, documents, hr, invoice, meetings, portals, proposals, support
 
 # ---------------------------------------------------------------------------
 # Structured logging setup
@@ -133,8 +133,6 @@ Instrumentator(
     excluded_handlers=["/metrics", "/health"],
 ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
-
-from routers import crm, documents, hr, invoice, meetings, proposals, support, portals
 
 # ---------------------------------------------------------------------------
 # Routers
