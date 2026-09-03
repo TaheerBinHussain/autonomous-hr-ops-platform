@@ -63,6 +63,112 @@ def get_jobs_history() -> dict[str, Any]:
 def get_applications() -> dict[str, Any]:
     return {"status": "success", "count": len(APPLICATIONS), "applications": APPLICATIONS}
 
+@app.post("/api/seed-candidates")
+def seed_sample_candidates() -> dict[str, Any]:
+    """1-Click Sample Data Generator for Demo & Viva Presentations."""
+    global APPLICATIONS
+    sample_data = [
+        {
+            "id": 1,
+            "candidate_name": "Usman Ali",
+            "email": "usman.ali@devops.io",
+            "job_title": ACTIVE_JOB["title"],
+            "score": 100,
+            "suitability_score": 100,
+            "detected_experience_years": 5,
+            "detected_education": "Bachelor's",
+            "is_genuine_resume": True,
+            "document_type": "Valid Candidate Resume / CV",
+            "recommendation": "Shortlisted for Interview",
+            "matched_skills": ["python", "docker", "kubernetes", "aws", "terraform", "ci/cd", "linux"],
+            "missing_skills": [],
+            "applied_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        },
+        {
+            "id": 2,
+            "candidate_name": "Sarah Connor",
+            "email": "sarah.connor@aiplatform.tech",
+            "job_title": ACTIVE_JOB["title"],
+            "score": 85,
+            "suitability_score": 85,
+            "detected_experience_years": 4,
+            "detected_education": "Master's",
+            "is_genuine_resume": True,
+            "document_type": "Valid Candidate Resume / CV",
+            "recommendation": "Shortlisted for Interview",
+            "matched_skills": ["python", "docker", "kubernetes", "aws", "linux"],
+            "missing_skills": ["terraform", "ci/cd"],
+            "applied_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        },
+        {
+            "id": 3,
+            "candidate_name": "Invalid Candidate (Syllabus)",
+            "email": "student@course.edu",
+            "job_title": ACTIVE_JOB["title"],
+            "score": 0,
+            "suitability_score": 0,
+            "detected_experience_years": 0,
+            "detected_education": "None",
+            "is_genuine_resume": False,
+            "document_type": "Invalid Document (Study Plan / Roadmap / Syllabus Detected)",
+            "recommendation": "Rejected: Invalid Document (Study Plan / Roadmap / Syllabus Detected)",
+            "matched_skills": [],
+            "missing_skills": ["python", "docker", "kubernetes", "aws"],
+            "applied_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        },
+        {
+            "id": 4,
+            "candidate_name": "Alex Chen",
+            "email": "alex.chen@dev.io",
+            "job_title": ACTIVE_JOB["title"],
+            "score": 45,
+            "suitability_score": 45,
+            "detected_experience_years": 1,
+            "detected_education": "Bachelor's",
+            "is_genuine_resume": True,
+            "document_type": "Valid Candidate Resume / CV",
+            "recommendation": "Review Required / Rejected",
+            "matched_skills": ["python", "linux"],
+            "missing_skills": ["docker", "kubernetes", "aws", "terraform", "ci/cd"],
+            "applied_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        }
+    ]
+    APPLICATIONS = sample_data + APPLICATIONS
+    return {"status": "success", "message": "Seeded 4 sample candidates live!", "count": len(APPLICATIONS)}
+
+class EmailPreviewPayload(BaseModel):
+    candidate_name: str
+    job_title: str
+    score: int
+    is_shortlisted: bool
+
+@app.post("/api/generate-email-preview")
+def generate_email_preview(payload: EmailPreviewPayload) -> dict[str, Any]:
+    if payload.is_shortlisted:
+        subject = f"🎉 Official Interview Invitation: {payload.job_title}"
+        body = (
+            f"Dear {payload.candidate_name},\n\n"
+            f"We are pleased to inform you that your resume scored {payload.score}% suitability for the {payload.job_title} position.\n"
+            f"Based on your strong technical alignment, we would like to invite you for an interview with our engineering panel.\n\n"
+            f"Proposed Interview Slots:\n"
+            f"1. Tomorrow at 10:00 AM EST (Technical Deep-Dive)\n"
+            f"2. Tomorrow at 02:00 PM EST (Architecture Review)\n"
+            f"3. Day after tomorrow at 11:00 AM EST (Team Sync)\n\n"
+            f"Video Call Link: https://meet.jit.si/nexus-interview-{payload.candidate_name.lower().replace(' ', '-')}\n\n"
+            f"Best regards,\nNexus HR Talent Acquisition Team"
+        )
+    else:
+        subject = f"Application Update: {payload.job_title}"
+        body = (
+            f"Dear {payload.candidate_name},\n\n"
+            f"Thank you for applying for the {payload.job_title} position. Your resume match score was {payload.score}%.\n"
+            f"While your background is impressive, we are currently prioritizing candidates with stronger alignment in our core required stack.\n\n"
+            f"We will keep your resume on file for future engineering roles.\n\n"
+            f"Best regards,\nNexus HR Talent Acquisition Team"
+        )
+
+    return {"status": "success", "subject": subject, "body": body}
+
 @app.post("/api/set-job")
 def set_job_requirements(payload: JobRequirementsPayload) -> dict[str, Any]:
     global ACTIVE_JOB
@@ -572,7 +678,13 @@ def serve_candidate_portal():
             </div>
 
             <div class="glass-card">
-                <h3 style="margin-top:0; font-family:'Space Grotesk';">📝 Application Submission Form</h3>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="margin:0; font-family:'Space Grotesk';">📝 Application Submission Form</h3>
+                    <div>
+                        <button type="button" onclick="presetQualified()" style="background:rgba(16,185,129,0.2); color:#34D399; border:1px solid #34D399; padding:6px 12px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer; margin-right:8px;">🟢 Preset Qualified Resume</button>
+                        <button type="button" onclick="presetInvalid()" style="background:rgba(239,68,68,0.2); color:#FCA5A5; border:1px solid #FCA5A5; padding:6px 12px; border-radius:6px; font-size:0.8rem; font-weight:700; cursor:pointer;">🔴 Preset Invalid Syllabus</button>
+                    </div>
+                </div>
                 <form id="appForm" onsubmit="handleCandidateSubmit(event)">
                     <label>Full Name *</label>
                     <input type="text" id="candName" placeholder="e.g. Sarah Connor" required>
@@ -615,6 +727,18 @@ def serve_candidate_portal():
                     }});
                 }} catch(e) {{}}
             }}
+            function presetQualified() {{
+                document.getElementById('candName').value = 'Usman Ali';
+                document.getElementById('candEmail').value = 'usman@example.com';
+                document.getElementById('candResumeText').value = 'Usman Ali - Senior DevOps Engineer with 5+ years of experience in Python, Docker, Kubernetes, AWS, Terraform, CI/CD, and Linux. Education: Bachelor of Science in Computer Science.';
+            }}
+
+            function presetInvalid() {{
+                document.getElementById('candName').value = 'Test Candidate';
+                document.getElementById('candEmail').value = 'student@course.edu';
+                document.getElementById('candResumeText').value = 'Weekly Plan for DevOps learning. Week 1: Python roadmap and course syllabus. Week 2: Docker module 1 assignment and homework.';
+            }}
+
             loadActiveJob();
 
             async function handleCandidateSubmit(e) {{
@@ -717,7 +841,10 @@ def serve_admin_portal():
             <div class="glass-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                     <h3 style="margin:0; font-family:'Space Grotesk';">📥 Applicant Tracking System (ATS)</h3>
-                    <button onclick="loadDashboardData()" style="background:rgba(255,255,255,0.1); color:white; border:1px solid var(--border); padding:6px 14px; border-radius:8px; cursor:pointer;">🔄 Refresh</button>
+                    <div>
+                        <button onclick="seedSampleData()" style="background:rgba(139,92,246,0.25); color:#C4B5FD; border:1px solid #8B5CF6; padding:6px 14px; border-radius:8px; cursor:pointer; font-weight:700; margin-right:8px;">⚡ 1-Click Load 4 Sample Candidates</button>
+                        <button onclick="loadDashboardData()" style="background:rgba(255,255,255,0.1); color:white; border:1px solid var(--border); padding:6px 14px; border-radius:8px; cursor:pointer;">🔄 Refresh</button>
+                    </div>
                 </div>
                 <div id="appsTableContainer">
                     <p style="color:var(--text-muted);">Loading candidate applications...</p>
@@ -766,6 +893,31 @@ def serve_admin_portal():
                 }}
             }}
 
+            async function seedSampleData() {{
+                try {{
+                    const res = await fetch('/api/seed-candidates', {{ method: 'POST' }});
+                    const data = await res.json();
+                    alert(data.message);
+                    loadDashboardData();
+                }} catch(e) {{
+                    alert('Error seeding candidates');
+                }}
+            }}
+
+            async function previewEmail(name, job, score, isShortlisted) {{
+                try {{
+                    const res = await fetch('/api/generate-email-preview', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ candidate_name: name, job_title: job, score: score, is_shortlisted: isShortlisted }})
+                    }});
+                    const data = await res.json();
+                    alert("SUBJECT: " + data.subject + "\n\n" + data.body);
+                }} catch(e) {{
+                    alert('Error generating email preview');
+                }}
+            }}
+
             async function loadDashboardData() {{
                 try {{
                     const res = await fetch('/api/applications');
@@ -773,7 +925,7 @@ def serve_admin_portal():
                     const container = document.getElementById('appsTableContainer');
 
                     if (!data.applications || data.applications.length === 0) {{
-                        container.innerHTML = '<p style="color:var(--text-muted); font-style:italic;">No applications received yet. Applications submitted via /apply will appear here live!</p>';
+                        container.innerHTML = '<p style="color:var(--text-muted); font-style:italic;">No applications received yet. Click "⚡ 1-Click Load 4 Sample Candidates" above to populate live demo data!</p>';
                     }} else {{
                         let html = `<table>
                             <thead>
@@ -785,11 +937,13 @@ def serve_admin_portal():
                                     <th>Authenticity</th>
                                     <th>Score</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>`;
                         data.applications.forEach(a => {{
-                            const badge = a.score >= 60 ? 
+                            const isShort = a.score >= 60;
+                            const badge = isShort ? 
                                 `<span style="background:rgba(16,185,129,0.2); color:#34D399; padding:4px 8px; border-radius:6px; font-weight:700;">Shortlisted (${{a.score}}%)</span>` : 
                                 `<span style="background:rgba(239,68,68,0.2); color:#FCA5A5; padding:4px 8px; border-radius:6px; font-weight:700;">Rejected (${{a.score}}%)</span>`;
                                 
@@ -805,6 +959,9 @@ def serve_admin_portal():
                                 <td>${{docBadge}}</td>
                                 <td><strong>${{a.score}}%</strong></td>
                                 <td>${{badge}}</td>
+                                <td>
+                                    <button onclick="previewEmail('${{a.candidate_name}}', '${{a.job_title}}', ${{a.score}}, ${{isShort}})" style="background:rgba(0,212,255,0.2); color:var(--accent-blue); border:1px solid var(--accent-blue); border-radius:6px; padding:4px 8px; font-size:0.78rem; font-weight:700; cursor:pointer;">✉️ View Email</button>
+                                </td>
                             </tr>`;
                         }});
                         html += `</tbody></table>`;
