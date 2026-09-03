@@ -23,6 +23,10 @@ services:
       - REDIS_HOST=redis
       - N8N_ENCRYPTION_KEY=your-encryption-key-here
       - WEBHOOK_URL=http://localhost:5678/
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
@@ -96,6 +100,10 @@ services:
       - SMTP_PORT=1025
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     networks:
       - automation_net
 
@@ -109,6 +117,10 @@ services:
     environment:
       - SMTP_HOST=mailpit
       - SMTP_PORT=1025
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     networks:
       - automation_net
 
