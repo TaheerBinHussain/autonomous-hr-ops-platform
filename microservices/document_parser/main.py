@@ -1407,9 +1407,9 @@ def serve_admin_portal():
                     const res = await fetch('/api/candidate-interview-guide/' + appId);
                     const data = await res.json();
                     if (data.interview_questions) {{
-                        let text = `AI INTERVIEW QUESTION GUIDE FOR ${data.candidate_name.toUpperCase()}\nPosition: ${data.job_title} | Score: ${data.score}%\n\n`;
+                        let text = `AI INTERVIEW QUESTION GUIDE FOR ${{data.candidate_name.toUpperCase()}}\nPosition: ${{data.job_title}} | Score: ${{data.score}}%\n\n`;
                         data.interview_questions.forEach(q => {{
-                            text += `Q${q.question_number} [${q.topic}]:\n${q.question}\nExpected Answer Key: ${q.expected_answer_key}\n\n`;
+                            text += `Q${{q.question_number}} [${{q.topic}}]:\n${{q.question}}\nExpected Answer Key: ${{q.expected_answer_key}}\n\n`;
                         }});
                         alert(text);
                     }}
