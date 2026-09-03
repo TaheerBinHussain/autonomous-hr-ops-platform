@@ -1,7 +1,6 @@
 """
 Enterprise AI Recruitment Platform & Autonomous Document Parsing Engine.
-Dedicated HR Admin Panel & Public Candidate Job Application Portals.
-Clean Light Theme UI, Multi-Vacancy Selection, Detailed Email Feedback, & Real Gemini LLM API Evaluation.
+Corporate Slate & Emerald Precision Architecture (Zero Emojis, Dedicated File Upload Portal, Multi-Vacancy Selection).
 """
 
 import io
@@ -22,7 +21,7 @@ from pydantic import BaseModel
 app = FastAPI(
     title="Enterprise AI Recruitment Platform",
     description="Dedicated HR Admin Panel & Public Candidate Job Application Portals",
-    version="4.4.0"
+    version="5.0.0"
 )
 
 INITIAL_JOB = {
@@ -186,7 +185,7 @@ Evaluate candidate suitability and return ONLY a JSON object with these exact ke
   "missing_skills": list of missing skill strings,
   "score": int between 0 and 100,
   "recommendation": "Shortlisted for Interview" or "Review Required / Rejected",
-  "ai_reasoning": "Detailed 2-sentence breakdown of candidate suitability explaining exact reasons for acceptance or rejection"
+  "ai_reasoning": "Detailed 2-sentence breakdown explaining exact reasons for acceptance or rejection"
 }}
 """
         data = json.dumps({
@@ -308,33 +307,33 @@ def send_email_to_mailpit(
     matched_skills: list[str] = None,
     missing_skills: list[str] = None
 ):
-    """Sends email directly to Mailpit SMTP server or HTTP API with detailed acceptance/rejection reasons."""
+    """Sends email directly to Mailpit SMTP server or HTTP API with detailed acceptance/rejection reasons (Zero Emojis)."""
     matched_str = ", ".join(matched_skills) if matched_skills else "None"
     missing_str = ", ".join(missing_skills) if missing_skills else "None"
 
     if is_shortlisted:
-        subject = f"🎉 Interview Invitation: {job_title}"
+        subject = f"Interview Invitation: {job_title}"
         body = (
-            f"Hi {candidate_name},\n\n"
-            f"Congratulations! Your candidate application scored {score}% suitability for the {job_title} position.\n\n"
-            f"📋 Evaluation Summary & Reasons for Shortlisting:\n"
-            f"• Suitability Match Score: {score}%\n"
-            f"• Matched Required Skills: {matched_str}\n"
-            f"• Detailed AI Feedback: {ai_reasoning}\n\n"
-            f"We would like to invite you for an interview with our engineering team.\n\n"
-            f"Best regards,\nHR Talent Acquisition Team"
+            f"Dear {candidate_name},\n\n"
+            f"Thank you for applying for the {job_title} position. Your application scored {score}% suitability.\n\n"
+            f"EVALUATION SUMMARY & QUALIFICATION REASONS:\n"
+            f"- Match Score: {score}%\n"
+            f"- Matched Required Skills: {matched_str}\n"
+            f"- AI Evaluation Feedback: {ai_reasoning}\n\n"
+            f"We would like to invite you for an interview with our technical panel.\n\n"
+            f"Best regards,\nTalent Acquisition Team"
         )
     else:
         subject = f"Application Update: {job_title}"
         body = (
-            f"Hi {candidate_name},\n\n"
+            f"Dear {candidate_name},\n\n"
             f"Thank you for applying for the {job_title} position. Your resume match score was {score}%.\n\n"
-            f"📋 Evaluation Summary & Specific Reasons for Rejection:\n"
-            f"• Suitability Match Score: {score}%\n"
-            f"• Missing Core Required Skills: {missing_str}\n"
-            f"• Detailed AI Feedback: {ai_reasoning}\n\n"
-            f"We are seeking candidates with stronger alignment in our required technical stack for this specific opening.\n\n"
-            f"Best regards,\nHR Talent Acquisition Team"
+            f"EVALUATION SUMMARY & SPECIFIC REASONS FOR REJECTION:\n"
+            f"- Match Score: {score}%\n"
+            f"- Missing Core Skills: {missing_str}\n"
+            f"- AI Evaluation Feedback: {ai_reasoning}\n\n"
+            f"We are seeking candidates with higher alignment in our specific required technical stack.\n\n"
+            f"Best regards,\nTalent Acquisition Team"
         )
 
     smtp_hosts = ["mailpit", "localhost", "127.0.0.1", "host.docker.internal"]
@@ -358,7 +357,7 @@ def send_email_to_mailpit(
         "http://127.0.0.1:8025/api/v1/send"
     ]
     payload = json.dumps({
-        "From": {"Email": "recruiting@company.local", "Name": "HR Talent Acquisition"},
+        "From": {"Email": "recruiting@company.local", "Name": "Talent Acquisition"},
         "To": [{"Email": to_email, "Name": candidate_name}],
         "Subject": subject,
         "Text": body
@@ -422,7 +421,7 @@ async def submit_application(
         extracted_text = resume_text
 
     if not extracted_text.strip():
-        raise HTTPException(status_code=400, detail="Please upload a valid PDF resume file or paste text")
+        raise HTTPException(status_code=400, detail="Please select and upload a valid PDF or TXT candidate resume file.")
 
     # Resolve target job vacancy from selection
     target_job = ACTIVE_JOB
@@ -567,190 +566,293 @@ def send_email_api(payload: dict[str, Any]) -> dict[str, Any]:
     return {"status": "success", "message": f"Email dispatched to {to_email}"}
 
 # ---------------------------------------------------------------------------
-# Clean High-End Enterprise Light Theme UI System
+# Slate & Emerald Corporate Precision Architecture (Zero Emojis)
 # ---------------------------------------------------------------------------
 
-LIGHT_THEME_STYLE = """
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+CORPORATE_STYLE = """
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
-        --bg-main: #F8FAFC;
+        --bg-slate: #F8FAFC;
         --card-bg: #FFFFFF;
-        --border-color: #E2E8F0;
-        --primary: #4F46E5;
-        --primary-hover: #4338CA;
-        --text-primary: #0F172A;
-        --text-secondary: #475569;
+        --border-slate: #E2E8F0;
+        --text-main: #0F172A;
         --text-muted: #64748B;
-        --success-text: #047857;
-        --success-bg: #D1FAE5;
-        --success-border: #A7F3D0;
-        --danger-text: #B91C1C;
-        --danger-bg: #FEE2E2;
-        --danger-border: #FCA5A5;
-        --badge-blue-bg: #EEF2FF;
-        --badge-blue-text: #3730A3;
+        --emerald-primary: #059669;
+        --emerald-hover: #047857;
+        --emerald-light: #ECFDF5;
+        --emerald-border: #A7F3D0;
+        --navy-dark: #1E293B;
+        --rose-alert: #991B1B;
+        --rose-bg: #FEF2F2;
+        --rose-border: #FECACA;
+        --blue-badge-bg: #EFF6FF;
+        --blue-badge-text: #1E40AF;
+        --blue-badge-border: #BFDBFE;
     }
+
+    * { box-sizing: border-box; }
 
     body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        background-color: var(--bg-main);
-        color: var(--text-primary);
+        font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+        background-color: var(--bg-slate);
+        color: var(--text-main);
         margin: 0;
-        padding: 40px 20px;
+        padding: 0;
         min-height: 100vh;
+    }
+
+    /* Top Navigation Bar */
+    .navbar {
+        background-color: #FFFFFF;
+        border-bottom: 1px solid var(--border-slate);
+        padding: 16px 36px;
         display: flex;
-        flex-direction: column;
+        justify-content: space-between;
         align-items: center;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
     }
 
-    .container {
-        max-width: 960px;
-        width: 100%;
-    }
-
-    .header-banner {
-        text-align: center;
-        margin-bottom: 32px;
-    }
-
-    .header-banner h1 {
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 2.2rem;
+    .navbar-brand {
+        font-size: 1.2rem;
         font-weight: 700;
-        color: var(--text-primary);
-        margin: 0 0 8px 0;
-        letter-spacing: -0.5px;
+        color: var(--text-main);
+        letter-spacing: -0.3px;
+        text-decoration: none;
     }
 
-    .header-banner p {
-        color: var(--text-secondary);
-        font-size: 1.05rem;
+    .navbar-brand span {
+        color: var(--emerald-primary);
+    }
+
+    .nav-links {
+        display: flex;
+        gap: 16px;
+    }
+
+    .nav-link {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.88rem;
+        padding: 8px 14px;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+    }
+
+    .nav-link:hover, .nav-link.active {
+        color: var(--emerald-primary);
+        background-color: var(--emerald-light);
+    }
+
+    .main-wrapper {
+        max-width: 1040px;
+        margin: 36px auto;
+        padding: 0 20px;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin: 0 0 6px 0;
+        letter-spacing: -0.4px;
+    }
+
+    .page-header p {
+        color: var(--text-muted);
+        font-size: 0.98rem;
         margin: 0;
+    }
+
+    /* Metric Cards Grid */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .metric-card {
+        background: #FFFFFF;
+        border: 1px solid var(--border-slate);
+        border-radius: 8px;
+        padding: 18px;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+    }
+
+    .metric-card .label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+    }
+
+    .metric-card .value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text-main);
     }
 
     .card {
         background: var(--card-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 28px;
-        margin-bottom: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border: 1px solid var(--border-slate);
+        border-radius: 10px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
     }
 
-    .card-title {
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: var(--text-primary);
+    .card-header {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-main);
         margin-top: 0;
         margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-slate);
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
     label {
-        font-size: 0.88rem;
+        font-size: 0.85rem;
         font-weight: 600;
-        color: var(--text-secondary);
+        color: var(--text-main);
         display: block;
         margin-bottom: 6px;
     }
 
-    input[type="text"], input[type="email"], input[type="number"], select, textarea {
+    input[type="text"], input[type="email"], input[type="number"], select {
         width: 100%;
         background-color: #FFFFFF;
         border: 1px solid #CBD5E1;
-        color: var(--text-primary);
-        padding: 11px 14px;
-        border-radius: 8px;
-        box-sizing: border-box;
+        color: var(--text-main);
+        padding: 10px 12px;
+        border-radius: 6px;
         font-family: inherit;
-        font-size: 0.95rem;
+        font-size: 0.92rem;
         margin-bottom: 16px;
-        transition: border-color 0.15s, box-shadow 0.15s;
+        transition: border-color 0.15s;
     }
 
-    input:focus, select:focus, textarea:focus {
+    input:focus, select:focus {
         outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        border-color: var(--emerald-primary);
+        box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
     }
 
-    .btn-primary {
-        background-color: var(--primary);
+    /* File Drop Zone Area */
+    .file-upload-box {
+        border: 2px dashed #CBD5E1;
+        background-color: #F8FAFC;
+        border-radius: 8px;
+        padding: 24px;
+        text-align: center;
+        cursor: pointer;
+        margin-bottom: 18px;
+        transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .file-upload-box:hover {
+        border-color: var(--emerald-primary);
+        background-color: var(--emerald-light);
+    }
+
+    .file-upload-box input[type="file"] {
+        display: none;
+    }
+
+    .file-upload-title {
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .file-upload-sub {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .btn-emerald {
+        background-color: var(--emerald-primary);
         color: #FFFFFF;
         border: none;
-        padding: 12px 20px;
-        border-radius: 8px;
+        padding: 11px 20px;
+        border-radius: 6px;
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 0.92rem;
         cursor: pointer;
         width: 100%;
-        transition: background-color 0.15s, transform 0.1s;
+        transition: background-color 0.15s;
     }
 
-    .btn-primary:hover {
-        background-color: var(--primary-hover);
+    .btn-emerald:hover {
+        background-color: var(--emerald-hover);
     }
 
-    .badge {
+    .tag-badge {
         display: inline-block;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.8rem;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
         font-weight: 600;
         margin-right: 6px;
         margin-top: 4px;
     }
 
-    .badge-blue { background-color: var(--badge-blue-bg); color: var(--badge-blue-text); border: 1px solid #C7D2FE; }
-    .badge-success { background-color: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
-    .badge-danger { background-color: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
+    .tag-blue { background-color: var(--blue-badge-bg); color: var(--blue-badge-text); border: 1px solid var(--blue-badge-border); }
+    .tag-success { background-color: var(--emerald-light); color: var(--emerald-primary); border: 1px solid var(--emerald-border); }
+    .tag-danger { background-color: var(--rose-bg); color: var(--rose-alert); border: 1px solid var(--rose-border); }
 
     table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 12px;
     }
 
     th, td {
         padding: 12px 14px;
         text-align: left;
-        border-bottom: 1px solid var(--border-color);
-        font-size: 0.88rem;
+        border-bottom: 1px solid var(--border-slate);
+        font-size: 0.86rem;
     }
 
     th {
-        background-color: #F1F5F9;
-        color: var(--text-secondary);
+        background-color: #F8FAFC;
+        color: var(--text-muted);
         font-weight: 600;
         text-transform: uppercase;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         letter-spacing: 0.5px;
     }
 
-    .result-box {
+    .response-box {
         margin-top: 16px;
         background-color: #0F172A;
-        border: 1px solid #1E293B;
-        border-radius: 8px;
-        padding: 16px;
-        font-family: 'Monaco', 'Courier New', monospace;
-        font-size: 0.88rem;
         color: #34D399;
+        border-radius: 6px;
+        padding: 14px;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 0.84rem;
         white-space: pre-wrap;
         display: none;
     }
 
-    .source-badge {
-        font-size: 0.75rem;
+    .source-tag {
+        font-size: 0.72rem;
         font-weight: 600;
-        color: #4F46E5;
-        background: #EEF2FF;
-        border: 1px solid #C7D2FE;
-        padding: 2px 8px;
+        color: #059669;
+        background: #ECFDF5;
+        border: 1px solid #A7F3D0;
+        padding: 2px 6px;
         border-radius: 4px;
     }
 </style>
@@ -765,56 +867,81 @@ def serve_candidate_portal():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Careers & Candidate Portal</title>
-        {LIGHT_THEME_STYLE}
+        <title>Candidate Application Portal</title>
+        {CORPORATE_STYLE}
     </head>
     <body>
-        <div class="container">
-            <div class="header-banner">
-                <h1>💼 Careers & Candidate Application Portal</h1>
-                <p>Select an open job vacancy and submit your candidate resume for real-time Gemini AI evaluation</p>
+        <div class="navbar">
+            <a href="/" class="navbar-brand">Enterprise AI <span>Recruitment</span></a>
+            <div class="nav-links">
+                <a href="/admin" class="nav-link">HR Administration</a>
+                <a href="/apply" class="nav-link active">Candidate Application</a>
+                <a href="/docs" class="nav-link" target="_blank">API Documentation</a>
+            </div>
+        </div>
+
+        <div class="main-wrapper">
+            <div class="page-header">
+                <h1>Candidate Job Application Portal</h1>
+                <p>Select a job vacancy, upload your candidate resume file (PDF or TXT), and submit for automated AI evaluation.</p>
             </div>
 
-            <div class="card" style="border-left: 4px solid var(--primary);">
-                <label style="font-size:0.9rem; font-weight:700; color:var(--primary); margin-bottom:8px;">📌 SELECT JOB VACANCY TO APPLY FOR:</label>
-                <select id="jobSelector" onchange="onJobSelectChange()" style="font-size:1.05rem; font-weight:600; padding:12px; border-color:#818CF8; background-color:#F5F3FF; margin-bottom:16px;">
+            <!-- Position Specification Box -->
+            <div class="card" style="border-left: 4px solid var(--emerald-primary);">
+                <label>Target Job Vacancy:</label>
+                <select id="jobSelector" onchange="onJobSelectChange()" style="font-size:1rem; font-weight:600; padding:10px; margin-bottom:16px;">
                     <option value="">Loading active job vacancies...</option>
                 </select>
 
-                <h2 id="displayJobTitle" style="font-family:'Space Grotesk'; font-size:1.5rem; margin:0 0 8px 0;">Loading Position...</h2>
-                <p id="displayJobDesc" style="color:var(--text-secondary); font-size:0.95rem; margin:0 0 14px 0;"></p>
+                <div id="displayJobTitle" style="font-size:1.35rem; font-weight:700; color:var(--text-main); margin-bottom:6px;">Loading Position...</div>
+                <div id="displayJobDesc" style="color:var(--text-muted); font-size:0.92rem; margin-bottom:12px;"></div>
                 <div id="displayMetaBadges"></div>
                 <div id="displaySkillsTags" style="margin-top:10px;"></div>
             </div>
 
+            <!-- Application Form -->
             <div class="card">
-                <div class="card-title">
-                    <span>📝 Candidate Application Form</span>
+                <div class="card-header">
+                    <span>Application Form</span>
                 </div>
 
                 <form id="appForm" onsubmit="handleCandidateSubmit(event)">
                     <label>Full Name *</label>
-                    <input type="text" id="candName" placeholder="e.g. Taheer Bin Hussain" value="Taheer Bin Hussain" required>
+                    <input type="text" id="candName" value="Taheer Bin Hussain" placeholder="e.g. Taheer Bin Hussain" required>
 
                     <label>Email Address *</label>
-                    <input type="email" id="candEmail" placeholder="e.g. taheer@example.com" value="taheer@example.com" required>
+                    <input type="email" id="candEmail" value="taheer@example.com" placeholder="e.g. taheer@example.com" required>
 
-                    <label>📎 Upload Resume File (PDF / TXT) *</label>
-                    <input type="file" id="candResumeFile" accept=".pdf,.txt">
+                    <label>Upload Candidate Resume File (PDF or TXT) *</label>
+                    <div class="file-upload-box" onclick="triggerFileInput()">
+                        <input type="file" id="candResumeFile" accept=".pdf,.txt" onchange="updateFileName(this)">
+                        <div class="file-upload-title" id="fileUploadLabel">Click or Drag PDF / TXT Resume File Here</div>
+                        <div class="file-upload-sub">Accepted Formats: PDF or Plain Text (.txt)</div>
+                    </div>
 
-                    <label>Or Paste Resume Text:</label>
-                    <textarea id="candResumeText" rows="6" placeholder="Paste your candidate resume text here..."></textarea>
-
-                    <button type="submit" class="btn-primary">🚀 Submit Candidate Application</button>
+                    <button type="submit" class="btn-emerald">Submit Candidate Application</button>
                 </form>
 
-                <div id="candResult" class="result-box"></div>
+                <div id="candResult" class="response-box"></div>
             </div>
         </div>
 
         <script>
             let allJobsList = [];
             let currentSelectedJob = null;
+
+            function triggerFileInput() {{
+                document.getElementById('candResumeFile').click();
+            }}
+
+            function updateFileName(input) {{
+                const label = document.getElementById('fileUploadLabel');
+                if (input.files && input.files.length > 0) {{
+                    label.textContent = "Selected File: " + input.files[0].name;
+                }} else {{
+                    label.textContent = "Click or Drag PDF / TXT Resume File Here";
+                }}
+            }}
 
             async function loadJobsDropdown() {{
                 try {{
@@ -854,16 +981,16 @@ def serve_candidate_portal():
 
                 const meta = document.getElementById('displayMetaBadges');
                 meta.innerHTML = `
-                    <span class="badge badge-blue">⏳ Required Experience: ${{job.required_experience_years || 3}}+ Years</span>
-                    <span class="badge badge-blue">🎓 Required Degree: ${{job.required_education || "Bachelor's"}}</span>
-                    <span class="badge badge-blue">📍 Mode: ${{job.job_type || "Remote"}}</span>
+                    <span class="tag-badge tag-blue">Min Experience: ${{job.required_experience_years || 3}}+ Years</span>
+                    <span class="tag-badge tag-blue">Required Degree: ${{job.required_education || "Bachelor's"}}</span>
+                    <span class="tag-badge tag-blue">Employment Mode: ${{job.job_type || "Remote"}}</span>
                 `;
 
                 const container = document.getElementById('displaySkillsTags');
                 const skills = job.required_skills || job.skills || [];
-                container.innerHTML = '<strong style="font-size:0.85rem; color:var(--text-secondary);">Required Skills:</strong><br>';
+                container.innerHTML = '<strong style="font-size:0.82rem; color:var(--text-muted);">Required Skills:</strong><br>';
                 skills.forEach(s => {{
-                    container.innerHTML += `<span class="badge badge-blue">${{s.toUpperCase()}}</span>`;
+                    container.innerHTML += `<span class="tag-badge tag-blue">${{s.toUpperCase()}}</span>`;
                 }});
             }}
 
@@ -874,11 +1001,15 @@ def serve_candidate_portal():
                 const name = document.getElementById('candName').value;
                 const email = document.getElementById('candEmail').value;
                 const fileInput = document.getElementById('candResumeFile');
-                const textInput = document.getElementById('candResumeText').value;
                 const resBox = document.getElementById('candResult');
 
+                if (!fileInput.files || fileInput.files.length === 0) {{
+                    alert('Please select a PDF or TXT resume file to upload.');
+                    return;
+                }}
+
                 resBox.style.display = 'block';
-                resBox.innerText = 'Evaluating resume against selected job position via Google Gemini AI & triggering n8n...';
+                resBox.innerText = 'Uploading resume PDF and evaluating candidate via Gemini AI...';
 
                 const formData = new FormData();
                 formData.append('full_name', name);
@@ -887,10 +1018,7 @@ def serve_candidate_portal():
                     formData.append('job_id', currentSelectedJob.id);
                     formData.append('job_title_input', currentSelectedJob.title);
                 }}
-                if (fileInput.files.length > 0) {{
-                    formData.append('resume_file', fileInput.files[0]);
-                }}
-                formData.append('resume_text', textInput);
+                formData.append('resume_file', fileInput.files[0]);
 
                 try {{
                     const res = await fetch('/api/submit-application', {{
@@ -916,20 +1044,49 @@ def serve_admin_portal():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>HR Admin Control Panel & Candidate Dashboard</title>
-        {LIGHT_THEME_STYLE}
+        <title>HR Administration Panel & ATS Dashboard</title>
+        {CORPORATE_STYLE}
     </head>
     <body>
-        <div class="container">
-            <div class="header-banner">
-                <h1>⚙️ HR Admin Control Panel & ATS Dashboard</h1>
-                <p>Post new job vacancies, inspect Gemini AI evaluation scores, and track applicant decision reasons</p>
+        <div class="navbar">
+            <a href="/" class="navbar-brand">Enterprise AI <span>Recruitment</span></a>
+            <div class="nav-links">
+                <a href="/admin" class="nav-link active">HR Administration</a>
+                <a href="/apply" class="nav-link">Candidate Application</a>
+                <a href="/docs" class="nav-link" target="_blank">API Documentation</a>
+            </div>
+        </div>
+
+        <div class="main-wrapper">
+            <div class="page-header">
+                <h1>HR Administration Panel & ATS Dashboard</h1>
+                <p>Manage job vacancies, track candidate application scores, and review AI evaluation reasons.</p>
             </div>
 
-            <!-- Job Publishing -->
+            <!-- Metrics Row -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="label">Total Job Vacancies</div>
+                    <div class="value" id="statVacancies">1</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Received Applications</div>
+                    <div class="value" id="statApps">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Shortlisted Candidates</div>
+                    <div class="value" id="statShortlisted">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Gemini AI Engine</div>
+                    <div class="value" style="font-size:1.15rem; color:var(--emerald-primary); margin-top:6px;">Active</div>
+                </div>
+            </div>
+
+            <!-- Publish Vacancy -->
             <div class="card">
-                <div class="card-title">
-                    <span>📢 Publish New Active Job Vacancy</span>
+                <div class="card-header">
+                    <span>Create & Publish Job Vacancy</span>
                 </div>
 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -938,7 +1095,7 @@ def serve_admin_portal():
                         <input type="text" id="adminTitle" value="Senior DevOps & Cloud Architect">
                     </div>
                     <div>
-                        <label>Job Mode / Location:</label>
+                        <label>Employment Mode / Location:</label>
                         <select id="adminJobType">
                             <option value="Full-Time" selected>Full-Time</option>
                             <option value="Remote">Remote</option>
@@ -965,38 +1122,38 @@ def serve_admin_portal():
                 </div>
 
                 <label>Job Description:</label>
-                <textarea id="adminDesc" rows="2">We are seeking a DevOps Architect with 3+ years experience to manage cloud infrastructure, containers, and automated deployment pipelines.</textarea>
+                <input type="text" id="adminDesc" value="We are seeking a DevOps Architect with 3+ years experience to manage cloud infrastructure, containers, and automated deployment pipelines.">
 
-                <label>Required Technical Skills (Comma Separated):</label>
+                <label>Required Technical Stack (Comma Separated):</label>
                 <input type="text" id="adminSkills" value="Python, Docker, Kubernetes, AWS, Terraform, CI/CD, Linux">
 
-                <button class="btn-primary" onclick="publishNewJob()">📢 Publish Vacancy & Sync Candidate Portal</button>
-                <div id="adminResult" class="result-box"></div>
+                <button class="btn-emerald" onclick="publishNewJob()">Publish Job Vacancy</button>
+                <div id="adminResult" class="response-box"></div>
             </div>
 
-            <!-- Applications Dashboard with Live Search Filter -->
+            <!-- Applications ATS Table -->
             <div class="card">
-                <div class="card-title">
-                    <span>📥 Received Candidate Applications (ATS)</span>
-                    <button onclick="loadDashboardData()" style="background:#F1F5F9; color:var(--text-primary); border:1px solid #CBD5E1; padding:6px 12px; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:pointer;">🔄 Refresh</button>
+                <div class="card-header">
+                    <span>Applicant Tracking System (ATS)</span>
+                    <button onclick="loadDashboardData()" style="background:#F1F5F9; color:var(--text-main); border:1px solid #CBD5E1; padding:6px 12px; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer;">Refresh List</button>
                 </div>
 
-                <div style="margin-bottom: 14px;">
-                    <input type="text" id="searchFilter" onkeyup="filterApplications()" placeholder="🔍 Search candidates by name, job title, or evaluation reasons..." style="margin-bottom:0;">
+                <div style="margin-bottom:14px;">
+                    <input type="text" id="searchFilter" onkeyup="filterApplications()" placeholder="Filter candidate applications by name, position, or reasons..." style="margin-bottom:0;">
                 </div>
 
                 <div id="appsTableContainer">
-                    <p style="color:var(--text-secondary);">Loading candidate applications...</p>
+                    <p style="color:var(--text-muted);">Loading applications...</p>
                 </div>
             </div>
 
             <!-- Job History Archive -->
             <div class="card">
-                <div class="card-title">
-                    <span>📜 Active & Past Job Postings Archive</span>
+                <div class="card-header">
+                    <span>Active & Past Job Vacancies Archive</span>
                 </div>
                 <div id="jobsHistoryContainer">
-                    <p style="color:var(--text-secondary);">Loading job postings archive...</p>
+                    <p style="color:var(--text-muted);">Loading job postings...</p>
                 </div>
             </div>
         </div>
@@ -1013,7 +1170,7 @@ def serve_admin_portal():
                 const skillsArr = document.getElementById('adminSkills').value.split(',');
                 const resBox = document.getElementById('adminResult');
                 resBox.style.display = 'block';
-                resBox.innerText = 'Publishing job position...';
+                resBox.innerText = 'Publishing job vacancy...';
 
                 try {{
                     const res = await fetch('/api/set-job', {{
@@ -1032,7 +1189,7 @@ def serve_admin_portal():
                     resBox.innerText = JSON.stringify(data, null, 2);
                     loadDashboardData();
                 }} catch(e) {{
-                    resBox.innerText = 'Error updating job requirements';
+                    resBox.innerText = 'Error publishing job requirements';
                 }}
             }}
 
@@ -1041,8 +1198,7 @@ def serve_admin_portal():
                 const filtered = cachedApplications.filter(a => 
                     (a.candidate_name && a.candidate_name.toLowerCase().includes(query)) ||
                     (a.job_title && a.job_title.toLowerCase().includes(query)) ||
-                    (a.ai_reasoning && a.ai_reasoning.toLowerCase().includes(query)) ||
-                    (a.recommendation && a.recommendation.toLowerCase().includes(query))
+                    (a.ai_reasoning && a.ai_reasoning.toLowerCase().includes(query))
                 );
                 renderApplicationsTable(filtered);
             }}
@@ -1050,7 +1206,7 @@ def serve_admin_portal():
             function renderApplicationsTable(apps) {{
                 const container = document.getElementById('appsTableContainer');
                 if (!apps || apps.length === 0) {{
-                    container.innerHTML = '<p style="color:var(--text-secondary); font-style:italic;">No candidate applications found.</p>';
+                    container.innerHTML = '<p style="color:var(--text-muted); font-style:italic;">No candidate applications received yet.</p>';
                     return;
                 }}
 
@@ -1063,7 +1219,7 @@ def serve_admin_portal():
                             <th>Degree</th>
                             <th>Authenticity</th>
                             <th>AI Score</th>
-                            <th>Decision & Reasoning</th>
+                            <th>Evaluation Reasons</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -1071,12 +1227,12 @@ def serve_admin_portal():
 
                 apps.forEach(a => {{
                     const badge = a.score >= 60 ? 
-                        `<span class="badge badge-success">Shortlisted (${{a.score}}%)</span>` : 
-                        `<span class="badge badge-danger">Rejected (${{a.score}}%)</span>`;
+                        `<span class="tag-badge tag-success">Shortlisted (${{a.score}}%)</span>` : 
+                        `<span class="tag-badge tag-danger">Rejected (${{a.score}}%)</span>`;
                         
                     const docBadge = a.is_genuine_resume ?
-                        `<span style="color:#047857; font-weight:600;">Valid CV</span>` :
-                        `<span style="color:#B91C1C; font-weight:bold;">Invalid Document</span>`;
+                        `<span style="color:#059669; font-weight:600;">Valid CV</span>` :
+                        `<span style="color:#991B1B; font-weight:bold;">Invalid Document</span>`;
 
                     const reasoningText = a.ai_reasoning || 'Evaluated suitability based on requirements.';
 
@@ -1087,7 +1243,7 @@ def serve_admin_portal():
                         <td>${{a.detected_education || 'N/A'}}</td>
                         <td>${{docBadge}}</td>
                         <td><strong style="font-size:1.05rem;">${{a.score}}%</strong></td>
-                        <td style="max-width:280px; font-size:0.83rem; color:var(--text-secondary);">${{reasoningText}}</td>
+                        <td style="max-width:280px; font-size:0.83rem; color:var(--text-muted);">${{reasoningText}}</td>
                         <td>${{badge}}</td>
                     </tr>`;
                 }});
@@ -1100,30 +1256,35 @@ def serve_admin_portal():
                     const res = await fetch('/api/applications');
                     const data = await res.json();
                     cachedApplications = data.applications || [];
+                    document.getElementById('statApps').innerText = cachedApplications.length;
+                    const shortlisted = cachedApplications.filter(a => a.score >= 60).length;
+                    document.getElementById('statShortlisted').innerText = shortlisted;
                     renderApplicationsTable(cachedApplications);
                 }} catch(e) {{}}
 
                 try {{
                     const res = await fetch('/api/jobs-history');
                     const data = await res.json();
+                    const jobs = data.jobs || [];
+                    document.getElementById('statVacancies').innerText = jobs.length;
                     const container = document.getElementById('jobsHistoryContainer');
 
-                    if (!data.jobs || data.jobs.length === 0) {{
-                        container.innerHTML = '<p style="color:var(--text-secondary);">No job history available.</p>';
+                    if (jobs.length === 0) {{
+                        container.innerHTML = '<p style="color:var(--text-muted);">No job history available.</p>';
                     }} else {{
                         let html = '';
-                        data.jobs.forEach(j => {{
+                        jobs.forEach(j => {{
                             const skills = j.required_skills || j.skills || [];
-                            const tags = skills.map(s => `<span class="badge badge-blue">${{s.toUpperCase()}}</span>`).join(' ');
-                            html += `<div style="background:#FFFFFF; border:1px solid #CBD5E1; border-radius:8px; padding:16px; margin-bottom:12px;">
+                            const tags = skills.map(s => `<span class="tag-badge tag-blue">${{s.toUpperCase()}}</span>`).join(' ');
+                            html += `<div style="background:#FFFFFF; border:1px solid var(--border-slate); border-radius:8px; padding:16px; margin-bottom:12px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                                    <h4 style="margin:0; font-family:'Space Grotesk'; color:var(--text-primary);">${{j.title}} (${{j.job_type || 'Full-Time'}})</h4>
+                                    <h4 style="margin:0; font-family:'Plus Jakarta Sans'; color:var(--text-main);">${{j.title}} (${{j.job_type || 'Full-Time'}})</h4>
                                     <small style="color:var(--text-muted);">${{j.posted_at || ''}}</small>
                                 </div>
-                                <div style="color:var(--primary); font-size:0.82rem; font-weight:600; margin:4px 0;">
-                                    ⏳ Min Exp: ${{j.required_experience_years || 3}}+ yrs | 🎓 Degree: ${{j.required_education || "Bachelor's"}}
+                                <div style="color:var(--emerald-primary); font-size:0.82rem; font-weight:600; margin:4px 0;">
+                                    Min Experience: ${{j.required_experience_years || 3}}+ Years | Required Degree: ${{j.required_education || "Bachelor's"}}
                                 </div>
-                                <p style="color:var(--text-secondary); font-size:0.88rem; margin:6px 0 10px 0;">${{j.description}}</p>
+                                <p style="color:var(--text-muted); font-size:0.88rem; margin:6px 0 10px 0;">${{j.description}}</p>
                                 <div>${{tags}}</div>
                             </div>`;
                         }});
@@ -1147,29 +1308,38 @@ def serve_main_hub():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Enterprise AI Recruitment Hub</title>
-        {LIGHT_THEME_STYLE}
+        {CORPORATE_STYLE}
     </head>
     <body>
-        <div class="container" style="text-align:center;">
-            <div class="header-banner">
-                <h1>⚡ Enterprise AI Recruitment Hub</h1>
-                <p>Select your portal destination below:</p>
+        <div class="navbar">
+            <a href="/" class="navbar-brand">Enterprise AI <span>Recruitment</span></a>
+            <div class="nav-links">
+                <a href="/admin" class="nav-link">HR Administration</a>
+                <a href="/apply" class="nav-link">Candidate Application</a>
+                <a href="/docs" class="nav-link" target="_blank">API Documentation</a>
+            </div>
+        </div>
+
+        <div class="main-wrapper" style="text-align:center;">
+            <div class="page-header" style="margin-top:20px;">
+                <h1>Enterprise AI Recruitment Platform</h1>
+                <p>Select your operational destination below to manage vacancies or submit candidate applications.</p>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:30px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:32px;">
                 <a href="/admin" style="text-decoration:none;">
-                    <div class="card" style="height:100%; transition:transform 0.2s, box-shadow 0.2s;">
-                        <div style="font-size:2.8rem; margin-bottom:12px;">⚙️</div>
-                        <h2 style="font-family:'Space Grotesk'; font-size:1.4rem; margin:0 0 8px 0; color:var(--text-primary);">HR Admin Portal</h2>
-                        <p style="color:var(--text-secondary); font-size:0.95rem;">Post job openings, define required skills, and track candidate ATS evaluation scores live.</p>
+                    <div class="card" style="height:100%; text-align:left; transition:transform 0.2s;">
+                        <h2 style="font-size:1.3rem; margin:0 0 8px 0; color:var(--text-main);">HR Administration Panel</h2>
+                        <p style="color:var(--text-muted); font-size:0.92rem; margin:0 0 16px 0;">Publish job openings, set technical requirements, and monitor real Gemini AI candidate ATS evaluation scores.</p>
+                        <span class="tag-badge tag-success">Access Admin Panel &rarr;</span>
                     </div>
                 </a>
 
                 <a href="/apply" style="text-decoration:none;">
-                    <div class="card" style="height:100%; transition:transform 0.2s, box-shadow 0.2s;">
-                        <div style="font-size:2.8rem; margin-bottom:12px;">💼</div>
-                        <h2 style="font-family:'Space Grotesk'; font-size:1.4rem; margin:0 0 8px 0; color:var(--text-primary);">Candidate Portal</h2>
-                        <p style="color:var(--text-secondary); font-size:0.95rem;">Select from open job vacancies, upload PDF resumes, and receive instant Gemini AI suitability evaluations.</p>
+                    <div class="card" style="height:100%; text-align:left; transition:transform 0.2s;">
+                        <h2 style="font-size:1.3rem; margin:0 0 8px 0; color:var(--text-main);">Candidate Application Portal</h2>
+                        <p style="color:var(--text-muted); font-size:0.92rem; margin:0 0 16px 0;">Browse open vacancies, attach your candidate resume file (PDF or TXT), and submit for automated AI suitability analysis.</p>
+                        <span class="tag-badge tag-blue">Access Candidate Portal &rarr;</span>
                     </div>
                 </a>
             </div>
