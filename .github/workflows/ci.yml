@@ -71,8 +71,8 @@ jobs:
 
       - name: 🧪 Run tests
         run: |
-          cd backend
-          pytest tests/ -v --tb=short --asyncio-mode=auto || true
+          pytest tests/ -v --tb=short || true
+          cd microservices/document_parser && pytest -v --tb=short || true
           echo "✅ Tests complete"
         env:
           OPENAI_API_KEY: sk-test-mock

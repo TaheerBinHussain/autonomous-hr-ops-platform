@@ -69,7 +69,7 @@ services:
       - automation_net
 
   # ─────────────────────────────────────────────
-  # FastAPI / Python Backend
+  # FastAPI / Python Backend & Document Parser
   # ─────────────────────────────────────────────
   backend:
     build:
@@ -96,6 +96,19 @@ services:
       - SMTP_PORT=1025
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    networks:
+      - automation_net
+
+  document_parser:
+    build:
+      context: ./microservices/document_parser
+    container_name: document_parser
+    restart: unless-stopped
+    depends_on:
+      - mailpit
+    environment:
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
     networks:
       - automation_net
 

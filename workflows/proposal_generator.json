@@ -1,0 +1,48 @@
+{
+  "name": "Sales & Proposal Generator Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "generate-proposal",
+        "options": {}
+      },
+      "name": "Proposal Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "proposal_id",
+              "value": "=PROP-{{$now.format('YYYYMMDD-HHmmss')}}"
+            },
+            {
+              "name": "summary",
+              "value": "=Automated Proposal generated for {{$json.body.client_name}} detailing scope: {{$json.body.scope}}"
+            }
+          ]
+        }
+      },
+      "name": "Generate Proposal Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    }
+  ],
+  "connections": {
+    "Proposal Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate Proposal Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

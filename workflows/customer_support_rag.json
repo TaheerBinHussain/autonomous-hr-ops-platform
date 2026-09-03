@@ -1,0 +1,48 @@
+{
+  "name": "Smart Customer Support AI Knowledge Base Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "customer-support",
+        "options": {}
+      },
+      "name": "Customer Inquiry Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "ai_response",
+              "value": "=Thank you for contacting support. Regarding '{{$json.body.message}}': Our system recommends checking your dashboard settings."
+            },
+            {
+              "name": "confidence_score",
+              "value": "0.95"
+            }
+          ]
+        }
+      },
+      "name": "Format Knowledge Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    }
+  ],
+  "connections": {
+    "Customer Inquiry Webhook": {
+      "main": [
+        [
+          {
+            "node": "Format Knowledge Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

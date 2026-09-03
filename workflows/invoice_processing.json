@@ -1,0 +1,119 @@
+{
+  "name": "Finance AI Invoice Parser & Audit Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "invoice-parser",
+        "options": {}
+      },
+      "name": "Invoice Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://document_parser:8000/extract-invoice",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"text\": \"{{$json.body.invoice_text}}\"\n}"
+      },
+      "name": "Extract Invoice Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.total_amount}}",
+              "operation": "larger",
+              "value2": 1000
+            }
+          ]
+        }
+      },
+      "name": "High Value Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "audit_level",
+              "value": "MANAGER_APPROVAL_REQUIRED"
+            }
+          ]
+        }
+      },
+      "name": "Flag Manager Approval",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "audit_level",
+              "value": "AUTO_APPROVED"
+            }
+          ]
+        }
+      },
+      "name": "Auto Approve Payment",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Invoice Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Invoice Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Invoice Data": {
+      "main": [
+        [
+          {
+            "node": "High Value Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Value Check": {
+      "main": [
+        [
+          {
+            "node": "Flag Manager Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Auto Approve Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

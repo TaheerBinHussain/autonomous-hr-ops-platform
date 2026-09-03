@@ -1,0 +1,162 @@
+{
+  "name": "HR Recruitment Candidate Application & Automated Email",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "careers",
+        "formTitle": "Company Careers Portal - Apply Now",
+        "formDescription": "Submit your application for AI-powered resume screening.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Full Name",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email Address",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Target Role",
+              "fieldType": "text",
+              "requiredField": true,
+              "defaultValue": "DevOps Architect"
+            },
+            {
+              "fieldLabel": "Candidate Resume Text",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "defaultValue": "Experienced DevOps candidate with Python, Docker, Kubernetes, AWS, Terraform, Linux."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Candidate Form Trigger",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://document_parser:8000/extract-resume",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"resume_text\": $('Candidate Form Trigger').item.json['Candidate Resume Text'] || $('Candidate Form Trigger').item.json.resume_text || $json.resume_text || $json['Candidate Resume Text'] || \"Experienced DevOps engineer with Python, Docker, Kubernetes, AWS, Terraform, Linux.\",\n    \"target_role\": $('Candidate Form Trigger').item.json['Target Role'] || $('Candidate Form Trigger').item.json.target_role || $json.target_role || $json['Target Role'] || \"DevOps Architect\"\n  }\n}}",
+        "options": {}
+      },
+      "name": "Call Resume Parser",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.suitability_score !== undefined ? $json.suitability_score : ($json.score !== undefined ? $json.score : 0) }}",
+              "operation": "largerEqual",
+              "value2": 60
+            }
+          ]
+        }
+      },
+      "name": "Filter Score",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mailpit:8025/api/v1/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"From\": {\"Email\": \"recruiting@company.local\", \"Name\": \"HR Talent Team\"},\n  \"To\": [{\"Email\": \"{{ $('Candidate Form Trigger').item.json['Email Address'] || $('Candidate Form Trigger').item.json.email || $json.email || 'candidate@example.com' }}\", \"Name\": \"{{ $('Candidate Form Trigger').item.json['Full Name'] || $('Candidate Form Trigger').item.json.full_name || $json.full_name || 'Candidate' }}\"}],\n  \"Subject\": \"🎉 Interview Invitation: {{ $('Candidate Form Trigger').item.json['Target Role'] || $('Candidate Form Trigger').item.json.target_role || $json.target_role || 'Software Engineer' }}\",\n  \"Text\": \"Hi {{ $('Candidate Form Trigger').item.json['Full Name'] || $('Candidate Form Trigger').item.json.full_name || $json.full_name || 'Candidate' }},\\n\\nCongratulations! Your resume scored {{ $json.suitability_score || $json.score || 0 }}/100. We would like to invite you for an interview for the {{ $('Candidate Form Trigger').item.json['Target Role'] || $('Candidate Form Trigger').item.json.target_role || $json.target_role || 'Software Engineer' }} role.\\n\\nBest regards,\\nHR Talent Team\"\n}",
+        "options": {}
+      },
+      "name": "Send Interview Email (Mailpit)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mailpit:8025/api/v1/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"From\": {\"Email\": \"recruiting@company.local\", \"Name\": \"HR Talent Team\"},\n  \"To\": [{\"Email\": \"{{ $('Candidate Form Trigger').item.json['Email Address'] || $('Candidate Form Trigger').item.json.email || $json.email || 'candidate@example.com' }}\", \"Name\": \"{{ $('Candidate Form Trigger').item.json['Full Name'] || $('Candidate Form Trigger').item.json.full_name || $json.full_name || 'Candidate' }}\"}],\n  \"Subject\": \"Application Update: {{ $('Candidate Form Trigger').item.json['Target Role'] || $('Candidate Form Trigger').item.json.target_role || $json.target_role || 'Software Engineer' }}\",\n  \"Text\": \"Hi {{ $('Candidate Form Trigger').item.json['Full Name'] || $('Candidate Form Trigger').item.json.full_name || $json.full_name || 'Candidate' }},\\n\\nThank you for applying. Your score was {{ $json.suitability_score || $json.score || 0 }}/100. At this time we are seeking candidates with different technical skill profiles.\\n\\nBest regards,\\nHR Talent Team\"\n}",
+        "options": {}
+      },
+      "name": "Send Rejection Email (Mailpit)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Candidate Form Trigger": {
+      "main": [
+        [
+          {
+            "node": "Call Resume Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Resume Parser": {
+      "main": [
+        [
+          {
+            "node": "Filter Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Score": {
+      "main": [
+        [
+          {
+            "node": "Send Interview Email (Mailpit)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Rejection Email (Mailpit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
