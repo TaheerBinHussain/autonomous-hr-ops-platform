@@ -1,7 +1,7 @@
 """
 Enterprise AI Recruitment Platform & Autonomous Document Parsing Engine.
 Dedicated HR Admin Panel & Public Candidate Job Application Portals.
-Clean Light Theme UI & Real Gemini LLM API Candidate Evaluation Engine.
+Clean Light Theme UI, Multi-Vacancy Selection, Detailed Email Feedback, & Real Gemini LLM API Evaluation.
 """
 
 import io
@@ -22,7 +22,7 @@ from pydantic import BaseModel
 app = FastAPI(
     title="Enterprise AI Recruitment Platform",
     description="Dedicated HR Admin Panel & Public Candidate Job Application Portals",
-    version="4.3.0"
+    version="4.4.0"
 )
 
 INITIAL_JOB = {
@@ -51,7 +51,7 @@ class JobRequirementsPayload(BaseModel):
 
 @app.get("/health")
 def health_check() -> dict[str, Any]:
-    return {"status": "healthy", "active_job": ACTIVE_JOB}
+    return {"status": "healthy", "active_job": ACTIVE_JOB, "jobs_count": len(JOBS_HISTORY)}
 
 @app.get("/api/get-job")
 def get_job_requirements() -> dict[str, Any]:
@@ -83,7 +83,7 @@ def set_job_requirements(payload: JobRequirementsPayload) -> dict[str, Any]:
     }
     ACTIVE_JOB = new_job
     JOBS_HISTORY.insert(0, new_job)
-    return {"status": "success", "message": f"Active job updated to '{payload.title}'", "active_job": ACTIVE_JOB}
+    return {"status": "success", "message": f"Active job updated to '{payload.title}'", "active_job": ACTIVE_JOB, "jobs": JOBS_HISTORY}
 
 def classify_document_authenticity(text: str) -> dict[str, Any]:
     """Detects if document is a genuine Candidate Resume vs a Study Plan/Roadmap/Syllabus."""
@@ -186,7 +186,7 @@ Evaluate candidate suitability and return ONLY a JSON object with these exact ke
   "missing_skills": list of missing skill strings,
   "score": int between 0 and 100,
   "recommendation": "Shortlisted for Interview" or "Review Required / Rejected",
-  "ai_reasoning": "Detailed 2-sentence breakdown of candidate suitability"
+  "ai_reasoning": "Detailed 2-sentence breakdown of candidate suitability explaining exact reasons for acceptance or rejection"
 }}
 """
         data = json.dumps({
@@ -210,13 +210,14 @@ def calculate_enterprise_score(
     text: str,
     required_skills: list[str],
     req_exp_years: int,
-    req_education: str
+    req_education: str,
+    job_title: str = "Software Engineer"
 ) -> dict[str, Any]:
     """Calculates weighted hiring score using Real Gemini LLM API or Local Heuristic Engine fallback."""
     # 1. Try Real Google Gemini LLM API evaluation
     gemini_result = evaluate_resume_with_gemini_api(
         text=text,
-        job_title=ACTIVE_JOB.get("title", "Software Engineer"),
+        job_title=job_title,
         required_skills=required_skills,
         req_exp_years=req_exp_years,
         req_education=req_education
@@ -247,7 +248,7 @@ def calculate_enterprise_score(
             "final_score": 0,
             "is_shortlisted": False,
             "recommendation": f"Rejected: {doc_check['document_type']}",
-            "ai_reasoning": "Document was flagged as an invalid study plan or course syllabus rather than a candidate resume."
+            "ai_reasoning": "Application was rejected because the uploaded document was flagged as an invalid course syllabus or study roadmap rather than a authentic candidate resume."
         }
     
     matched_skills = [s for s in required_skills if re.search(r"\b" + re.escape(s) + r"\b", text, re.IGNORECASE)]
@@ -272,6 +273,12 @@ def calculate_enterprise_score(
         
     final_score = round((skill_score * 0.5) + (exp_score * 0.3) + (edu_score * 0.2))
     is_shortlisted = final_score >= 60
+
+    if is_shortlisted:
+        reasoning = f"Accepted: Candidate matched {len(matched_skills)}/{len(required_skills)} required technical skills ({', '.join(matched_skills)}) and meets the {req_exp_years}-year experience requirement with {det_exp} detected years."
+    else:
+        missing_fmt = ', '.join(missing_skills) if missing_skills else 'core stack depth'
+        reasoning = f"Rejected: Candidate missing key required skills ({missing_fmt}) or detected experience ({det_exp} years) fell below the required {req_exp_years} years threshold."
     
     return {
         "evaluation_source": "Local Fallback Rules Engine",
@@ -288,16 +295,32 @@ def calculate_enterprise_score(
         "final_score": final_score,
         "is_shortlisted": is_shortlisted,
         "recommendation": "Shortlisted for Interview" if is_shortlisted else "Review Required / Rejected",
-        "ai_reasoning": f"Matched {len(matched_skills)}/{len(required_skills)} required technical skills with {det_exp} detected years of experience."
+        "ai_reasoning": reasoning
     }
 
-def send_email_to_mailpit(to_email: str, candidate_name: str, score: int, is_shortlisted: bool, job_title: str):
-    """Sends email directly to Mailpit SMTP server or HTTP API with automatic host fallbacks."""
+def send_email_to_mailpit(
+    to_email: str,
+    candidate_name: str,
+    score: int,
+    is_shortlisted: bool,
+    job_title: str,
+    ai_reasoning: str = "",
+    matched_skills: list[str] = None,
+    missing_skills: list[str] = None
+):
+    """Sends email directly to Mailpit SMTP server or HTTP API with detailed acceptance/rejection reasons."""
+    matched_str = ", ".join(matched_skills) if matched_skills else "None"
+    missing_str = ", ".join(missing_skills) if missing_skills else "None"
+
     if is_shortlisted:
         subject = f"🎉 Interview Invitation: {job_title}"
         body = (
             f"Hi {candidate_name},\n\n"
-            f"Congratulations! Your resume scored {score}% suitability for the {job_title} position.\n"
+            f"Congratulations! Your candidate application scored {score}% suitability for the {job_title} position.\n\n"
+            f"📋 Evaluation Summary & Reasons for Shortlisting:\n"
+            f"• Suitability Match Score: {score}%\n"
+            f"• Matched Required Skills: {matched_str}\n"
+            f"• Detailed AI Feedback: {ai_reasoning}\n\n"
             f"We would like to invite you for an interview with our engineering team.\n\n"
             f"Best regards,\nHR Talent Acquisition Team"
         )
@@ -305,8 +328,12 @@ def send_email_to_mailpit(to_email: str, candidate_name: str, score: int, is_sho
         subject = f"Application Update: {job_title}"
         body = (
             f"Hi {candidate_name},\n\n"
-            f"Thank you for applying for the {job_title} position. Your resume match score was {score}%.\n"
-            f"At this time, we are seeking candidates with different technical skill profiles.\n\n"
+            f"Thank you for applying for the {job_title} position. Your resume match score was {score}%.\n\n"
+            f"📋 Evaluation Summary & Specific Reasons for Rejection:\n"
+            f"• Suitability Match Score: {score}%\n"
+            f"• Missing Core Required Skills: {missing_str}\n"
+            f"• Detailed AI Feedback: {ai_reasoning}\n\n"
+            f"We are seeking candidates with stronger alignment in our required technical stack for this specific opening.\n\n"
             f"Best regards,\nHR Talent Acquisition Team"
         )
 
@@ -370,6 +397,8 @@ def trigger_n8n_workflow(full_name: str, email: str, resume_text: str, target_ro
 async def submit_application(
     full_name: str = Form(...),
     email: str = Form(...),
+    job_id: int = Form(0),
+    job_title_input: str = Form(""),
     resume_file: UploadFile = File(None),
     resume_text: str = Form("")
 ) -> dict[str, Any]:
@@ -395,23 +424,45 @@ async def submit_application(
     if not extracted_text.strip():
         raise HTTPException(status_code=400, detail="Please upload a valid PDF resume file or paste text")
 
+    # Resolve target job vacancy from selection
+    target_job = ACTIVE_JOB
+    if job_id > 0:
+        found = next((j for j in JOBS_HISTORY if j.get("id") == job_id), None)
+        if found:
+            target_job = found
+    elif job_title_input.strip():
+        found = next((j for j in JOBS_HISTORY if j.get("title").lower() == job_title_input.strip().lower()), None)
+        if found:
+            target_job = found
+
+    job_title = target_job["title"]
+    req_skills = target_job.get("required_skills", target_job.get("skills", []))
+    req_exp = target_job.get("required_experience_years", 3)
+    req_edu = target_job.get("required_education", "Bachelor's")
+
     res_eval = calculate_enterprise_score(
         text=extracted_text,
-        required_skills=ACTIVE_JOB.get("required_skills", ACTIVE_JOB.get("skills", [])),
-        req_exp_years=ACTIVE_JOB.get("required_experience_years", 3),
-        req_education=ACTIVE_JOB.get("required_education", "Bachelor's")
+        required_skills=req_skills,
+        req_exp_years=req_exp,
+        req_education=req_edu,
+        job_title=job_title
     )
 
-    job_title = ACTIVE_JOB["title"]
     score = res_eval["final_score"]
     is_shortlisted = res_eval["is_shortlisted"]
+    reasoning = res_eval.get("ai_reasoning", "")
+    matched = res_eval.get("matched_skills", [])
+    missing = res_eval.get("missing_skills", [])
 
     send_email_to_mailpit(
         to_email=email,
         candidate_name=full_name,
         score=score,
         is_shortlisted=is_shortlisted,
-        job_title=job_title
+        job_title=job_title,
+        ai_reasoning=reasoning,
+        matched_skills=matched,
+        missing_skills=missing
     )
 
     trigger_n8n_workflow(
@@ -433,10 +484,10 @@ async def submit_application(
         "is_genuine_resume": res_eval.get("is_genuine_resume", True),
         "document_type": res_eval.get("document_type", "Valid Candidate Resume"),
         "recommendation": res_eval.get("recommendation", "Evaluated"),
-        "ai_reasoning": res_eval.get("ai_reasoning", "Candidate suitability evaluated."),
+        "ai_reasoning": reasoning,
         "evaluation_source": res_eval.get("evaluation_source", "System Evaluator"),
-        "matched_skills": res_eval.get("matched_skills", []),
-        "missing_skills": res_eval.get("missing_skills", []),
+        "matched_skills": matched,
+        "missing_skills": missing,
         "applied_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     }
     APPLICATIONS.insert(0, app_record)
@@ -453,10 +504,10 @@ async def submit_application(
         "is_genuine_resume": res_eval.get("is_genuine_resume", True),
         "document_type": res_eval.get("document_type", "Valid Candidate Resume"),
         "recommendation": res_eval.get("recommendation", "Evaluated"),
-        "ai_reasoning": res_eval.get("ai_reasoning", ""),
+        "ai_reasoning": reasoning,
         "evaluation_source": res_eval.get("evaluation_source", ""),
-        "matched_skills": res_eval.get("matched_skills", []),
-        "missing_skills": res_eval.get("missing_skills", []),
+        "matched_skills": matched,
+        "missing_skills": missing,
         "email_sent": True,
         "n8n_triggered": True
     }
@@ -469,13 +520,14 @@ class ResumeMatchPayload(BaseModel):
 def extract_resume(payload: ResumeMatchPayload = None, resume_text: str = "", target_role: str = "") -> dict[str, Any]:
     text = payload.resume_text if payload and payload.resume_text else resume_text
     if not text:
-        text = "Sample candidate resume with Python, Docker, Kubernetes, Linux."
+        text = "Candidate resume with Python, Docker, Kubernetes, Linux."
 
     res_eval = calculate_enterprise_score(
         text=text,
         required_skills=ACTIVE_JOB.get("required_skills", ACTIVE_JOB.get("skills", [])),
         req_exp_years=ACTIVE_JOB.get("required_experience_years", 3),
-        req_education=ACTIVE_JOB.get("required_education", "Bachelor's")
+        req_education=ACTIVE_JOB.get("required_education", "Bachelor's"),
+        job_title=ACTIVE_JOB["title"]
     )
 
     return {
@@ -505,12 +557,13 @@ async def parse_document(payload: dict[str, Any] = None) -> dict[str, Any]:
 @app.post("/send-email")
 def send_email_api(payload: dict[str, Any]) -> dict[str, Any]:
     to_email = payload.get("email", "test@example.com")
-    name = payload.get("candidate_name", "Candidate")
+    name = payload.get("candidate_name", "Taheer Bin Hussain")
     score = payload.get("score", 75)
     is_shortlisted = score >= 60
     job_title = ACTIVE_JOB["title"]
+    reasoning = payload.get("ai_reasoning", "Evaluated suitability.")
 
-    send_email_to_mailpit(to_email, name, score, is_shortlisted, job_title)
+    send_email_to_mailpit(to_email, name, score, is_shortlisted, job_title, reasoning)
     return {"status": "success", "message": f"Email dispatched to {to_email}"}
 
 # ---------------------------------------------------------------------------
@@ -712,18 +765,22 @@ def serve_candidate_portal():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Careers & Job Application Portal</title>
+        <title>Careers & Candidate Portal</title>
         {LIGHT_THEME_STYLE}
     </head>
     <body>
         <div class="container">
             <div class="header-banner">
-                <h1>💼 Careers & Job Application Portal</h1>
-                <p>Submit your candidate application for real-time Gemini LLM AI evaluation</p>
+                <h1>💼 Careers & Candidate Application Portal</h1>
+                <p>Select an open job vacancy and submit your candidate resume for real-time Gemini AI evaluation</p>
             </div>
 
             <div class="card" style="border-left: 4px solid var(--primary);">
-                <div style="font-size:0.78rem; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">OPEN VACANCY</div>
+                <label style="font-size:0.9rem; font-weight:700; color:var(--primary); margin-bottom:8px;">📌 SELECT JOB VACANCY TO APPLY FOR:</label>
+                <select id="jobSelector" onchange="onJobSelectChange()" style="font-size:1.05rem; font-weight:600; padding:12px; border-color:#818CF8; background-color:#F5F3FF; margin-bottom:16px;">
+                    <option value="">Loading active job vacancies...</option>
+                </select>
+
                 <h2 id="displayJobTitle" style="font-family:'Space Grotesk'; font-size:1.5rem; margin:0 0 8px 0;">Loading Position...</h2>
                 <p id="displayJobDesc" style="color:var(--text-secondary); font-size:0.95rem; margin:0 0 14px 0;"></p>
                 <div id="displayMetaBadges"></div>
@@ -737,18 +794,18 @@ def serve_candidate_portal():
 
                 <form id="appForm" onsubmit="handleCandidateSubmit(event)">
                     <label>Full Name *</label>
-                    <input type="text" id="candName" placeholder="e.g. Usman Ali" required>
+                    <input type="text" id="candName" placeholder="e.g. Taheer Bin Hussain" value="Taheer Bin Hussain" required>
 
                     <label>Email Address *</label>
-                    <input type="email" id="candEmail" placeholder="e.g. usman@example.com" required>
+                    <input type="email" id="candEmail" placeholder="e.g. taheer@example.com" value="taheer@example.com" required>
 
                     <label>📎 Upload Resume File (PDF / TXT) *</label>
                     <input type="file" id="candResumeFile" accept=".pdf,.txt">
 
                     <label>Or Paste Resume Text:</label>
-                    <textarea id="candResumeText" rows="5" placeholder="Paste your candidate resume text here..."></textarea>
+                    <textarea id="candResumeText" rows="6" placeholder="Paste your candidate resume text here..."></textarea>
 
-                    <button type="submit" class="btn-primary">🚀 Submit Application to Gemini AI Engine</button>
+                    <button type="submit" class="btn-primary">🚀 Submit Candidate Application</button>
                 </form>
 
                 <div id="candResult" class="result-box"></div>
@@ -756,29 +813,61 @@ def serve_candidate_portal():
         </div>
 
         <script>
-            async function loadActiveJob() {{
+            let allJobsList = [];
+            let currentSelectedJob = null;
+
+            async function loadJobsDropdown() {{
                 try {{
-                    const res = await fetch('/api/get-job');
-                    const job = await res.json();
-                    document.getElementById('displayJobTitle').innerText = job.title;
-                    document.getElementById('displayJobDesc').innerText = job.description;
+                    const res = await fetch('/api/jobs-history');
+                    const data = await res.json();
+                    allJobsList = data.jobs || [];
 
-                    const meta = document.getElementById('displayMetaBadges');
-                    meta.innerHTML = `
-                        <span class="badge badge-blue">⏳ Required Experience: ${{job.required_experience_years || 3}}+ Years</span>
-                        <span class="badge badge-blue">🎓 Required Degree: ${{job.required_education || "Bachelor's"}}</span>
-                        <span class="badge badge-blue">📍 Mode: ${{job.job_type || "Remote"}}</span>
-                    `;
+                    const selector = document.getElementById('jobSelector');
+                    selector.innerHTML = '';
 
-                    const container = document.getElementById('displaySkillsTags');
-                    const skills = job.required_skills || job.skills || [];
-                    container.innerHTML = '<strong style="font-size:0.85rem; color:var(--text-secondary);">Required Skills:</strong><br>';
-                    skills.forEach(s => {{
-                        container.innerHTML += `<span class="badge badge-blue">${{s.toUpperCase()}}</span>`;
+                    allJobsList.forEach(j => {{
+                        const opt = document.createElement('option');
+                        opt.value = j.id;
+                        opt.textContent = `${{j.title}} (${{j.job_type || 'Full-Time'}}) - Posted ${{j.posted_at || ''}}`;
+                        selector.appendChild(opt);
                     }});
+
+                    if (allJobsList.length > 0) {{
+                        currentSelectedJob = allJobsList[0];
+                        renderSelectedJobDetails(currentSelectedJob);
+                    }}
                 }} catch(e) {{}}
             }}
-            loadActiveJob();
+
+            function onJobSelectChange() {{
+                const selectedId = parseInt(document.getElementById('jobSelector').value);
+                const found = allJobsList.find(j => j.id === selectedId);
+                if (found) {{
+                    currentSelectedJob = found;
+                    renderSelectedJobDetails(found);
+                }}
+            }}
+
+            function renderSelectedJobDetails(job) {{
+                document.getElementById('displayJobTitle').innerText = job.title;
+                document.getElementById('displayJobDesc').innerText = job.description;
+
+                const meta = document.getElementById('displayMetaBadges');
+                meta.innerHTML = `
+                    <span class="badge badge-blue">⏳ Required Experience: ${{job.required_experience_years || 3}}+ Years</span>
+                    <span class="badge badge-blue">🎓 Required Degree: ${{job.required_education || "Bachelor's"}}</span>
+                    <span class="badge badge-blue">📍 Mode: ${{job.job_type || "Remote"}}</span>
+                `;
+
+                const container = document.getElementById('displaySkillsTags');
+                const skills = job.required_skills || job.skills || [];
+                container.innerHTML = '<strong style="font-size:0.85rem; color:var(--text-secondary);">Required Skills:</strong><br>';
+                skills.forEach(s => {{
+                    container.innerHTML += `<span class="badge badge-blue">${{s.toUpperCase()}}</span>`;
+                }});
+            }}
+
+            loadJobsDropdown();
 
             async function handleCandidateSubmit(e) {{
                 e.preventDefault();
@@ -789,11 +878,15 @@ def serve_candidate_portal():
                 const resBox = document.getElementById('candResult');
 
                 resBox.style.display = 'block';
-                resBox.innerText = 'Evaluating resume via Google Gemini AI API & triggering n8n workflow...';
+                resBox.innerText = 'Evaluating resume against selected job position via Google Gemini AI & triggering n8n...';
 
                 const formData = new FormData();
                 formData.append('full_name', name);
                 formData.append('email', email);
+                if (currentSelectedJob) {{
+                    formData.append('job_id', currentSelectedJob.id);
+                    formData.append('job_title_input', currentSelectedJob.title);
+                }}
                 if (fileInput.files.length > 0) {{
                     formData.append('resume_file', fileInput.files[0]);
                 }}
@@ -830,13 +923,13 @@ def serve_admin_portal():
         <div class="container">
             <div class="header-banner">
                 <h1>⚙️ HR Admin Control Panel & ATS Dashboard</h1>
-                <p>Define job vacancies, monitor real Gemini AI evaluation scores, and track candidate history</p>
+                <p>Post new job vacancies, inspect Gemini AI evaluation scores, and track applicant decision reasons</p>
             </div>
 
             <!-- Job Publishing -->
             <div class="card">
                 <div class="card-title">
-                    <span>📢 Publish Active Job Vacancy</span>
+                    <span>📢 Publish New Active Job Vacancy</span>
                 </div>
 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -877,7 +970,7 @@ def serve_admin_portal():
                 <label>Required Technical Skills (Comma Separated):</label>
                 <input type="text" id="adminSkills" value="Python, Docker, Kubernetes, AWS, Terraform, CI/CD, Linux">
 
-                <button class="btn-primary" onclick="publishNewJob()">📢 Publish & Update Candidate Portal</button>
+                <button class="btn-primary" onclick="publishNewJob()">📢 Publish Vacancy & Sync Candidate Portal</button>
                 <div id="adminResult" class="result-box"></div>
             </div>
 
@@ -889,7 +982,7 @@ def serve_admin_portal():
                 </div>
 
                 <div style="margin-bottom: 14px;">
-                    <input type="text" id="searchFilter" onkeyup="filterApplications()" placeholder="🔍 Filter candidates by name, position, or status..." style="margin-bottom:0;">
+                    <input type="text" id="searchFilter" onkeyup="filterApplications()" placeholder="🔍 Search candidates by name, job title, or evaluation reasons..." style="margin-bottom:0;">
                 </div>
 
                 <div id="appsTableContainer">
@@ -897,13 +990,13 @@ def serve_admin_portal():
                 </div>
             </div>
 
-            <!-- Job History -->
+            <!-- Job History Archive -->
             <div class="card">
                 <div class="card-title">
-                    <span>📜 Job Postings Archive</span>
+                    <span>📜 Active & Past Job Postings Archive</span>
                 </div>
                 <div id="jobsHistoryContainer">
-                    <p style="color:var(--text-secondary);">Loading job history...</p>
+                    <p style="color:var(--text-secondary);">Loading job postings archive...</p>
                 </div>
             </div>
         </div>
@@ -948,6 +1041,7 @@ def serve_admin_portal():
                 const filtered = cachedApplications.filter(a => 
                     (a.candidate_name && a.candidate_name.toLowerCase().includes(query)) ||
                     (a.job_title && a.job_title.toLowerCase().includes(query)) ||
+                    (a.ai_reasoning && a.ai_reasoning.toLowerCase().includes(query)) ||
                     (a.recommendation && a.recommendation.toLowerCase().includes(query))
                 );
                 renderApplicationsTable(filtered);
@@ -969,7 +1063,7 @@ def serve_admin_portal():
                             <th>Degree</th>
                             <th>Authenticity</th>
                             <th>AI Score</th>
-                            <th>Evaluation Source</th>
+                            <th>Decision & Reasoning</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -984,16 +1078,16 @@ def serve_admin_portal():
                         `<span style="color:#047857; font-weight:600;">Valid CV</span>` :
                         `<span style="color:#B91C1C; font-weight:bold;">Invalid Document</span>`;
 
-                    const source = a.evaluation_source ? `<span class="source-badge">${{a.evaluation_source}}</span>` : '';
+                    const reasoningText = a.ai_reasoning || 'Evaluated suitability based on requirements.';
 
                     html += `<tr>
                         <td><strong>${{a.candidate_name}}</strong><br><small style="color:var(--text-muted);">${{a.email}}</small></td>
-                        <td>${{a.job_title}}</td>
+                        <td><strong>${{a.job_title}}</strong></td>
                         <td>${{a.detected_experience_years !== undefined ? a.detected_experience_years + ' yrs' : 'N/A'}}</td>
                         <td>${{a.detected_education || 'N/A'}}</td>
                         <td>${{docBadge}}</td>
                         <td><strong style="font-size:1.05rem;">${{a.score}}%</strong></td>
-                        <td>${{source}}</td>
+                        <td style="max-width:280px; font-size:0.83rem; color:var(--text-secondary);">${{reasoningText}}</td>
                         <td>${{badge}}</td>
                     </tr>`;
                 }});
@@ -1075,7 +1169,7 @@ def serve_main_hub():
                     <div class="card" style="height:100%; transition:transform 0.2s, box-shadow 0.2s;">
                         <div style="font-size:2.8rem; margin-bottom:12px;">💼</div>
                         <h2 style="font-family:'Space Grotesk'; font-size:1.4rem; margin:0 0 8px 0; color:var(--text-primary);">Candidate Portal</h2>
-                        <p style="color:var(--text-secondary); font-size:0.95rem;">View open positions, upload PDF resumes, and receive instant Gemini AI suitability evaluations.</p>
+                        <p style="color:var(--text-secondary); font-size:0.95rem;">Select from open job vacancies, upload PDF resumes, and receive instant Gemini AI suitability evaluations.</p>
                     </div>
                 </a>
             </div>
