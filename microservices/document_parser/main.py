@@ -1,6 +1,7 @@
 """
 Enterprise AI Recruitment Platform & Autonomous Document Parsing Engine.
-Corporate Slate & Emerald Precision Architecture (Zero Emojis, Dedicated File Upload Portal, Multi-Vacancy Selection).
+Corporate Slate & Emerald Precision Architecture.
+Features: Real Gemini LLM Evaluation, Customized AI Interview Question Generator, ATS CSV Database Export, & Printable Assessment Reports.
 """
 
 import io
@@ -15,13 +16,13 @@ from typing import Any
 
 import pypdf
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
 app = FastAPI(
     title="Enterprise AI Recruitment Platform",
     description="Dedicated HR Admin Panel & Public Candidate Job Application Portals",
-    version="5.0.0"
+    version="5.1.0"
 )
 
 INITIAL_JOB = {
@@ -63,6 +64,201 @@ def get_jobs_history() -> dict[str, Any]:
 @app.get("/api/applications")
 def get_applications() -> dict[str, Any]:
     return {"status": "success", "count": len(APPLICATIONS), "applications": APPLICATIONS}
+
+@app.get("/api/export-candidates-csv")
+def export_candidates_csv():
+    """SOLID FEATURE 1: Export Candidate ATS Database as CSV for Excel/ATS."""
+    output = io.StringIO()
+    output.write("ID,Candidate Name,Email,Job Position,Score %,Status,Detected Exp Yrs,Degree,Authenticity,Evaluation Reasons,Applied At\n")
+    for a in APPLICATIONS:
+        status_text = "Shortlisted" if a.get("score", 0) >= 60 else "Rejected"
+        reasons_clean = (a.get("ai_reasoning", "")).replace('"', '""').replace('\n', ' ')
+        doc_type = "Valid Resume" if a.get("is_genuine_resume") else "Invalid Document"
+        output.write(f'"{a.get("id")}","{a.get("candidate_name")}","{a.get("email")}","{a.get("job_title")}","{a.get("score")}","{status_text}","{a.get("detected_experience_years")}","{a.get("detected_education")}","{doc_type}","{reasons_clean}","{a.get("applied_at")}"\n')
+    
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=candidate_applications_export.csv"}
+    )
+
+@app.get("/api/candidate-interview-guide/{app_id}")
+def generate_candidate_interview_guide(app_id: int):
+    """SOLID FEATURE 2: AI-Generated Customized Technical Interview Guide."""
+    candidate = next((a for a in APPLICATIONS if a.get("id") == app_id), None)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate application not found")
+
+    candidate_name = candidate["candidate_name"]
+    job_title = candidate["job_title"]
+    matched = candidate.get("matched_skills", [])
+    missing = candidate.get("missing_skills", [])
+    score = candidate.get("score", 0)
+
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
+    if gemini_key and not gemini_key.startswith("your_free_"):
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={gemini_key}"
+            prompt = f"""You are an enterprise technical interviewer. Create a 4-question technical interview guide for this candidate.
+
+CANDIDATE: {candidate_name}
+APPLIED POSITION: {job_title}
+SUITABILITY SCORE: {score}%
+MATCHED SKILLS: {', '.join(matched)}
+MISSING SKILLS: {', '.join(missing)}
+
+Return ONLY a JSON array of 4 question objects with keys: "question_number" (int), "topic" (str), "question" (str), "expected_answer_key" (str).
+"""
+            data = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
+            req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                resp_data = json.loads(resp.read().decode("utf-8"))
+                raw_text = resp_data["candidates"][0]["content"]["parts"][0]["text"]
+                cleaned_json = raw_text.replace("```json", "").replace("```", "").strip()
+                questions_json = json.loads(cleaned_json)
+                return {
+                    "status": "success",
+                    "candidate_name": candidate_name,
+                    "job_title": job_title,
+                    "score": score,
+                    "source": "Google Gemini LLM Engine",
+                    "interview_questions": questions_json
+                }
+        except Exception as e:
+            print(f"[GEMINI INTERVIEW NOTICE] Fallback to rules: {e}")
+
+    # Fallback Interview Question Generator
+    fallback_questions = [
+        {
+            "question_number": 1,
+            "topic": f"Technical Deep-Dive: {matched[0] if matched else 'Core Architecture'}",
+            "question": f"Can you explain your hands-on experience designing production pipelines with {matched[0] if matched else 'microservices'}?",
+            "expected_answer_key": "Candidate should articulate architecture patterns, failover strategies, and concrete production deployment metrics."
+        },
+        {
+            "question_number": 2,
+            "topic": "Skill Gap Evaluation",
+            "question": f"Our team relies heavily on {missing[0] if missing else 'automated container orchestration'}. How would you onboard and address this gap?",
+            "expected_answer_key": "Candidate should demonstrate fast learning aptitude, reference similar tools, and explain practical lab experience."
+        },
+        {
+            "question_number": 3,
+            "topic": "System Reliability & Debugging",
+            "question": "Walk us through a critical production incident you resolved under tight timeline constraints.",
+            "expected_answer_key": "Look for systematic root-cause diagnosis, log analysis methodology, post-mortem practices, and rollback procedures."
+        },
+        {
+            "question_number": 4,
+            "topic": "Scalability & Performance",
+            "question": "How do you optimize resource utilization and infrastructure costs when scaling cloud workloads?",
+            "expected_answer_key": "Candidate should discuss auto-scaling parameters, caching strategies, and performance benchmarking tools."
+        }
+    ]
+
+    return {
+        "status": "success",
+        "candidate_name": candidate_name,
+        "job_title": job_title,
+        "score": score,
+        "source": "Local Interview Rules Engine",
+        "interview_questions": fallback_questions
+    }
+
+@app.get("/api/candidate-report/{app_id}", response_class=HTMLResponse)
+def generate_candidate_report_sheet(app_id: int):
+    """SOLID FEATURE 3: Printable Executive Assessment Sheet."""
+    candidate = next((a for a in APPLICATIONS if a.get("id") == app_id), None)
+    if not candidate:
+        return HTMLResponse("<h2>Candidate application not found</h2>", status_code=404)
+
+    score = candidate.get("score", 0)
+    is_shortlisted = score >= 60
+    status_bg = "#ECFDF5" if is_shortlisted else "#FEF2F2"
+    status_color = "#059669" if is_shortlisted else "#991B1B"
+    status_text = "SHORTLISTED FOR INTERVIEW" if is_shortlisted else "REVIEW REQUIRED / REJECTED"
+    matched_tags = "".join([f'<span class="tag-badge tag-success">{s.upper()}</span>' for s in candidate.get("matched_skills", [])]) or "None"
+    missing_tags = "".join([f'<span class="tag-badge tag-danger">{s.upper()}</span>' for s in candidate.get("missing_skills", [])]) or "None"
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Assessment Report - {candidate['candidate_name']}</title>
+        {CORPORATE_STYLE}
+        <style>
+            body {{ background:#FFFFFF; padding: 20px; }}
+            .report-card {{ border:1px solid #CBD5E1; padding:32px; border-radius:8px; max-width:850px; margin:0 auto; }}
+            @media print {{
+                .no-print {{ display:none; }}
+                body {{ padding:0; }}
+                .report-card {{ border:none; }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="no-print" style="max-width:850px; margin:0 auto 16px auto; text-align:right;">
+            <button onclick="window.print()" class="btn-emerald" style="width:auto; padding:8px 20px;">Print Assessment Report</button>
+        </div>
+
+        <div class="report-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #059669; padding-bottom:16px; margin-bottom:24px;">
+                <div>
+                    <h1 style="margin:0; font-size:1.6rem; color:#0F172A;">Executive Candidate Assessment Sheet</h1>
+                    <div style="color:#64748B; font-size:0.88rem; margin-top:4px;">Enterprise AI Recruitment Platform</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:0.8rem; font-weight:700; color:#64748B;">SUITABILITY SCORE</div>
+                    <div style="font-size:2.2rem; font-weight:700; color:#059669;">{score}%</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+                <div>
+                    <label>Candidate Name:</label>
+                    <div style="font-size:1.1rem; font-weight:700;">{candidate['candidate_name']}</div>
+                    <div style="color:#64748B; font-size:0.9rem;">{candidate['email']}</div>
+                </div>
+                <div>
+                    <label>Applied Position:</label>
+                    <div style="font-size:1.1rem; font-weight:700;">{candidate['job_title']}</div>
+                    <div style="color:#64748B; font-size:0.9rem;">Applied At: {candidate.get('applied_at', 'N/A')}</div>
+                </div>
+            </div>
+
+            <div style="background:{status_bg}; border:1px solid {status_color}; padding:14px 18px; border-radius:6px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; color:{status_color}; font-size:0.95rem;">HIRING STATUS: {status_text}</span>
+                <span style="font-size:0.82rem; color:{status_color}; font-weight:600;">{candidate.get('evaluation_source', '')}</span>
+            </div>
+
+            <div style="margin-bottom:24px;">
+                <h3 style="font-size:1.05rem; margin-bottom:10px; color:#0F172A;">Technical Qualification & Skill Matrix</h3>
+                <div style="margin-bottom:10px;">
+                    <strong>Matched Technical Skills:</strong><br>
+                    <div>{matched_tags}</div>
+                </div>
+                <div>
+                    <strong>Identified Skill Gaps:</strong><br>
+                    <div>{missing_tags}</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:24px;">
+                <h3 style="font-size:1.05rem; margin-bottom:8px; color:#0F172A;">Detailed AI Evaluation Reasoning</h3>
+                <div style="background:#F8FAFC; border:1px solid #E2E8F0; padding:16px; border-radius:6px; font-size:0.92rem; line-height:1.5; color:#334155;">
+                    {candidate.get('ai_reasoning', 'Candidate evaluated against job parameters.')}
+                </div>
+            </div>
+
+            <div style="border-top:1px solid #E2E8F0; pt:20px; margin-top:32px; display:flex; justify-content:space-between; color:#64748B; font-size:0.82rem;">
+                <div>Evaluated by Gemini LLM Recruitment Engine</div>
+                <div>Verified HR Sign-off: _____________________</div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
 
 @app.post("/api/set-job")
 def set_job_requirements(payload: JobRequirementsPayload) -> dict[str, Any]:
@@ -566,7 +762,7 @@ def send_email_api(payload: dict[str, Any]) -> dict[str, Any]:
     return {"status": "success", "message": f"Email dispatched to {to_email}"}
 
 # ---------------------------------------------------------------------------
-# Slate & Emerald Corporate Precision Architecture (Zero Emojis)
+# Slate & Emerald Corporate Precision Architecture
 # ---------------------------------------------------------------------------
 
 CORPORATE_STYLE = """
@@ -1060,7 +1256,7 @@ def serve_admin_portal():
         <div class="main-wrapper">
             <div class="page-header">
                 <h1>HR Administration Panel & ATS Dashboard</h1>
-                <p>Manage job vacancies, track candidate application scores, and review AI evaluation reasons.</p>
+                <p>Manage job vacancies, track candidate application scores, and generate AI interview guides.</p>
             </div>
 
             <!-- Metrics Row -->
@@ -1135,7 +1331,10 @@ def serve_admin_portal():
             <div class="card">
                 <div class="card-header">
                     <span>Applicant Tracking System (ATS)</span>
-                    <button onclick="loadDashboardData()" style="background:#F1F5F9; color:var(--text-main); border:1px solid #CBD5E1; padding:6px 12px; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer;">Refresh List</button>
+                    <div>
+                        <a href="/api/export-candidates-csv" style="background:var(--blue-badge-bg); color:var(--blue-badge-text); border:1px solid var(--blue-badge-border); padding:6px 12px; border-radius:6px; font-size:0.82rem; font-weight:600; text-decoration:none; margin-right:8px;">Export ATS Database (CSV)</a>
+                        <button onclick="loadDashboardData()" style="background:#F1F5F9; color:var(--text-main); border:1px solid #CBD5E1; padding:6px 12px; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer;">Refresh List</button>
+                    </div>
                 </div>
 
                 <div style="margin-bottom:14px;">
@@ -1203,6 +1402,22 @@ def serve_admin_portal():
                 renderApplicationsTable(filtered);
             }}
 
+            async function fetchInterviewGuide(appId) {{
+                try {{
+                    const res = await fetch('/api/candidate-interview-guide/' + appId);
+                    const data = await res.json();
+                    if (data.interview_questions) {{
+                        let text = `AI INTERVIEW QUESTION GUIDE FOR ${data.candidate_name.toUpperCase()}\nPosition: ${data.job_title} | Score: ${data.score}%\n\n`;
+                        data.interview_questions.forEach(q => {{
+                            text += `Q${q.question_number} [${q.topic}]:\n${q.question}\nExpected Answer Key: ${q.expected_answer_key}\n\n`;
+                        }});
+                        alert(text);
+                    }}
+                }} catch(e) {{
+                    alert('Error generating interview guide');
+                }}
+            }}
+
             function renderApplicationsTable(apps) {{
                 const container = document.getElementById('appsTableContainer');
                 if (!apps || apps.length === 0) {{
@@ -1221,6 +1436,7 @@ def serve_admin_portal():
                             <th>AI Score</th>
                             <th>Evaluation Reasons</th>
                             <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -1243,8 +1459,12 @@ def serve_admin_portal():
                         <td>${{a.detected_education || 'N/A'}}</td>
                         <td>${{docBadge}}</td>
                         <td><strong style="font-size:1.05rem;">${{a.score}}%</strong></td>
-                        <td style="max-width:280px; font-size:0.83rem; color:var(--text-muted);">${{reasoningText}}</td>
+                        <td style="max-width:240px; font-size:0.82rem; color:var(--text-muted);">${{reasoningText}}</td>
                         <td>${{badge}}</td>
+                        <td>
+                            <button onclick="fetchInterviewGuide(${{a.id}})" style="background:var(--emerald-light); color:var(--emerald-primary); border:1px solid var(--emerald-border); border-radius:4px; padding:4px 8px; font-size:0.75rem; font-weight:600; cursor:pointer; margin-bottom:4px;">AI Interview Guide</button><br>
+                            <a href="/api/candidate-report/${{a.id}}" target="_blank" style="color:var(--blue-badge-text); text-decoration:none; font-size:0.75rem; font-weight:600;">Print Report Sheet</a>
+                        </td>
                     </tr>`;
                 }});
                 html += `</tbody></table>`;
